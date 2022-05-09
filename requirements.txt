@@ -6,3 +6,4 @@ awesome-slugify~=1.6.5
 environs~=9.3.2
 more-itertools~=8.12.0
 geopy==2.2.0
+validate-email==1.3
