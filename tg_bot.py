@@ -55,11 +55,30 @@ logger = logging.getLogger(__file__)
 
 async def handle_start(update: Update,
                        context: CallbackContext.DEFAULT_TYPE) -> str:
+    await context.application.bot.delete_my_commands()
+    await context.application.bot.set_my_commands(
+        language_code='ru',
+        commands=[BotCommand('menu', 'Перейти в меню')]
+    )
+
     chat_id = context.user_data['chat_id']
     message_id = context.user_data['message_id']
     moltin_token = context.bot_data['moltin_token']
     await send_main_menu(context, chat_id, message_id, moltin_token, page=1)
     context.user_data['current_page'] = 1
+    return 'HANDLE_MENU'
+
+
+async def handle_menu_request(update: Update,
+                              context: CallbackContext.DEFAULT_TYPE) -> str:
+    chat_id = context.user_data['chat_id']
+    message_id = context.user_data['message_id']
+    moltin_token = context.bot_data['moltin_token']
+    current_page = context.user_data.get('current_page', 1)
+
+    await send_main_menu(context, chat_id, message_id, moltin_token,
+                         page=current_page)
+    context.user_data['current_page'] = current_page
     return 'HANDLE_MENU'
 
 
@@ -390,10 +409,14 @@ async def handle_users_reply(update: Update,
 
     if user_reply == '/start':
         user_state = 'START'
+    elif user_reply == '/menu':
+        user_state = 'MENU'
     else:
         user_state = context.user_data['state']
+
     states_functions = {
         'START': handle_start,
+        'MENU': handle_menu_request,
         'HANDLE_MENU': handle_menu,
         'HANDLE_DESCRIPTION': handle_description,
         'HANDLE_CART': handle_cart,
@@ -454,12 +477,6 @@ def main() -> None:
     application.add_handler(
         MessageHandler(filters.SUCCESSFUL_PAYMENT,
                        successful_payment_callback))
-
-    # await application.bot.delete_my_commands()
-    # await application.bot.set_my_commands(
-    #     language_code='ru',
-    #     commands=[BotCommand('start', 'Перейти в меню')]
-    # )
 
     try:
         application.run_polling()
