@@ -132,51 +132,53 @@ async def handle_description(update: Update,
     return 'HANDLE_DESCRIPTION'
 
 
-# def handle_cart(update, context):
-#     chat_id = context.user_data['chat_id']
-#     message_id = context.user_data['message_id']
-#     user_reply = context.user_data['user_reply']
-#     moltin_token = context.bot_data['moltin_token']
-#
-#     if user_reply == 'menu':
-#         current_page = context.user_data['current_page']
-#         send_main_menu(context, chat_id, message_id, moltin_token,
-#                        page=current_page)
-#         return 'HANDLE_MENU'
-#     elif user_reply == 'pay':
-#         if (context.bot_data.get('customers') and
-#                 context.bot_data['customers'].get(chat_id)):
-#             message = 'Пришлите нам ваш адрес текстом или геолокацию.'
-#             context.bot.send_message(text=message,
-#                                      chat_id=chat_id)
-#             context.bot.delete_message(chat_id=chat_id,
-#                                        message_id=message_id)
-#             return 'HANDLE_LOCATION'
-#
-#         message = 'Пожалуйста, напишите свою почту для связи с вами'
-#         context.bot.send_message(text=message,
-#                                  chat_id=chat_id)
-#         context.bot.delete_message(chat_id=chat_id,
-#                                    message_id=message_id)
-#         return 'WAITING_EMAIL'
-#
-#     item_removed = remove_cart_item(moltin_token, chat_id, user_reply)
-#     if item_removed:
-#         context.bot.answer_callback_query(
-#             callback_query_id=update.callback_query.id,
-#             text='Товар удален из корзины'
-#         )
-#         user_cart = get_cart_items(moltin_token, chat_id)
-#         cart_description = parse_cart(user_cart)
-#         send_cart_description(context, cart_description)
-#     else:
-#         context.bot.answer_callback_query(
-#             callback_query_id=update.callback_query.id,
-#             text='Товар не может быть удален из корзины'
-#         )
-#     return 'HANDLE_CART'
-#
-#
+async def handle_cart(update: Update,
+                      context: CallbackContext.DEFAULT_TYPE) -> str:
+    chat_id = context.user_data['chat_id']
+    message_id = context.user_data['message_id']
+    user_reply = context.user_data['user_reply']
+    moltin_token = context.bot_data['moltin_token']
+
+    if user_reply == 'menu':
+        current_page = context.user_data['current_page']
+        await send_main_menu(context, chat_id, message_id, moltin_token,
+                             page=current_page)
+        return 'HANDLE_MENU'
+    elif user_reply == 'pay':
+        if (context.bot_data.get('customers') and
+                context.bot_data['customers'].get(chat_id)):
+            message = 'Пришлите нам ваш адрес текстом или геолокацию.'
+            await context.bot.send_message(text=message,
+                                           chat_id=chat_id)
+            await context.bot.delete_message(chat_id=chat_id,
+                                             message_id=message_id)
+            return 'HANDLE_LOCATION'
+
+        message = 'Пожалуйста, напишите свою почту для связи с вами'
+        await context.bot.send_message(text=message,
+                                       chat_id=chat_id)
+        await context.bot.delete_message(chat_id=chat_id,
+                                         message_id=message_id)
+        return 'WAITING_EMAIL'
+
+    item_removed = remove_cart_item(moltin_token, chat_id, user_reply)
+    if item_removed:
+        await context.bot.answer_callback_query(
+            callback_query_id=update.callback_query.id,
+            text='Товар удален из корзины'
+        )
+        user_cart = get_cart_items(moltin_token, chat_id)
+        cart_description = parse_cart(user_cart)
+        await send_cart_description(context, cart_description,
+                                    chat_id, message_id)
+    else:
+        await context.bot.answer_callback_query(
+            callback_query_id=update.callback_query.id,
+            text='Товар не может быть удален из корзины'
+        )
+    return 'HANDLE_CART'
+
+
 # def handle_email(update, context):
 #     chat_id = context.user_data['chat_id']
 #     user_email = context.user_data['user_reply']
@@ -380,7 +382,7 @@ async def handle_users_reply(update: Update,
         'START': handle_start,
         'HANDLE_MENU': handle_menu,
         'HANDLE_DESCRIPTION': handle_description,
-        # 'HANDLE_CART': handle_cart,
+        'HANDLE_CART': handle_cart,
         # 'WAITING_EMAIL': handle_email,
         # 'HANDLE_LOCATION': handle_location,
         # 'HANDLE_DELIVERY': handle_delivery,
