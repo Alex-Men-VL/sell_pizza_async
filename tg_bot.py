@@ -36,7 +36,7 @@ from moltin_api import (
     create_customer,
     delete_cart,
     get_available_entries,
-    create_flow_entry, get_customer_by_email
+    create_flow_entry, get_customer_by_email, get_or_create_customer_by_email
 )
 from redis_persistence import RedisPersistence
 from tg_lib import (
@@ -90,7 +90,7 @@ async def handle_menu(update: Update,
     moltin_token = context.bot_data['moltin_token']
 
     if user_reply == 'cart':
-        user_cart = get_cart_items(moltin_token, chat_id)
+        user_cart = await get_cart_items(moltin_token, chat_id)
         cart_description = parse_cart(user_cart)
         await send_cart_description(context, cart_description,
                                     chat_id, message_id)
@@ -102,7 +102,9 @@ async def handle_menu(update: Update,
                              page=page)
     elif user_reply.startswith('product_'):
         product_id = user_reply.replace('product_', '')
-        product = get_product(moltin_token, product_id)['data']
+        product = await get_product(moltin_token, product_id)
+        product = product['data']
+
         product_main_image = product['relationships'].get('main_image')
         product_description = {
             'id': product['id'],
@@ -134,10 +136,10 @@ async def handle_description(update: Update,
         return 'HANDLE_MENU'
     elif user_reply.startswith('add_'):
         product_id = user_reply.replace('add_', '')
-        user_cart = get_or_create_cart(moltin_token, chat_id)
+        user_cart = await get_or_create_cart(moltin_token, chat_id)
         try:
-            add_cart_item(moltin_token, user_cart['data']['id'],
-                          product_id, item_quantity=1)
+            await add_cart_item(moltin_token, user_cart['data']['id'],
+                                product_id, item_quantity=1)
         except requests.exceptions.HTTPError:
             await context.bot.answer_callback_query(
                 callback_query_id=update.callback_query.id,
@@ -164,8 +166,8 @@ async def handle_cart(update: Update,
                              page=current_page)
         return 'HANDLE_MENU'
     elif user_reply == 'pay':
-        customer = get_customer_by_email(moltin_token,
-                                         context.user_data.get('email'))
+        customer = await get_customer_by_email(moltin_token,
+                                               context.user_data.get('email'))
         if customer['data']:
             message = 'Пришлите нам ваш адрес текстом или геолокацию.'
             await context.bot.send_message(text=message,
@@ -182,13 +184,14 @@ async def handle_cart(update: Update,
         return 'WAITING_EMAIL'
     elif user_reply.startswith('remove_'):
         product_id = user_reply.replace('remove_', '')
-        item_removed = remove_cart_item(moltin_token, chat_id, product_id)
+        item_removed = await remove_cart_item(moltin_token, chat_id,
+                                              product_id)
         if item_removed:
             await context.bot.answer_callback_query(
                 callback_query_id=update.callback_query.id,
                 text='Товар удален из корзины'
             )
-            user_cart = get_cart_items(moltin_token, chat_id)
+            user_cart = await get_cart_items(moltin_token, chat_id)
             cart_description = parse_cart(user_cart)
             await send_cart_description(context, cart_description,
                                         chat_id, message_id)
@@ -202,7 +205,6 @@ async def handle_cart(update: Update,
 
 async def handle_email(update: Update,
                        context: CallbackContext.DEFAULT_TYPE) -> str:
-    chat_id = context.user_data['chat_id']
     user_email = context.user_data['user_reply']
     moltin_token = context.bot_data['moltin_token']
 
@@ -212,9 +214,7 @@ async def handle_email(update: Update,
         return 'WAITING_EMAIL'
 
     context.user_data['email'] = user_email
-    customer = get_customer_by_email(moltin_token, user_email)
-    if not customer['data']:
-        customer = create_customer(moltin_token, user_email)
+    customer = await get_or_create_customer_by_email(moltin_token, user_email)
 
     message = f'''
     Вы ввели эту почту: {user_email}
@@ -240,8 +240,8 @@ async def handle_location(update: Update,
         )
         return 'HANDLE_LOCATION'
 
-    available_restaurants = get_available_entries(moltin_token,
-                                                  flow_slug='Pizzeria')
+    available_restaurants = await get_available_entries(moltin_token,
+                                                        flow_slug='Pizzeria')
     nearest_restaurant = get_nearest_restaurant(coordinates,
                                                 available_restaurants)
     context.user_data.update(
@@ -251,8 +251,8 @@ async def handle_location(update: Update,
         }
     )
     lon, lat = coordinates
-    create_flow_entry(moltin_token, 'Customer-Address',
-                      {'Lon': lon, 'Lat': lat})
+    await create_flow_entry(moltin_token, 'Customer-Address',
+                            {'Lon': lon, 'Lat': lat})
     await send_delivery_option(update, nearest_restaurant)
     return 'HANDLE_DELIVERY'
 
@@ -264,7 +264,7 @@ async def handle_delivery(update: Update,
     user_reply = context.user_data['user_reply']
     moltin_token = context.bot_data['moltin_token']
 
-    user_cart = get_cart_items(moltin_token, chat_id)
+    user_cart = await get_cart_items(moltin_token, chat_id)
     cart_description = parse_cart(user_cart)
     context.user_data['cart_price'] = cart_description['total_price']
     nearest_restaurant = context.user_data['nearest_restaurant']
@@ -370,7 +370,7 @@ async def successful_payment_callback(
     moltin_token = context.bot_data['moltin_token']
 
     await update.message.reply_text('Оплата прошла успешно')
-    delete_cart(moltin_token, chat_id)
+    await delete_cart(moltin_token, chat_id)
 
     unnecessary_data = ('nearest_restaurant', 'delivery_coordinates',
                         'cart_price', 'payload')
@@ -400,7 +400,7 @@ async def handle_users_reply(update: Update,
 
     if (not (token_expiration := context.bot_data.get('token_expiration')) or
             token_expiration <= datetime.timestamp(datetime.now())):
-        moltin_access_token = get_access_token(
+        moltin_access_token = await get_access_token(
             context.bot_data['client_id'],
             context.bot_data['client_secret']
         )

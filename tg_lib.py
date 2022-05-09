@@ -19,8 +19,8 @@ from moltin_api import (
 async def send_main_menu(context: CallbackContext.DEFAULT_TYPE,
                          chat_id: str, message_id: str, moltin_token: str,
                          page: int, quantity_per_page: int = 8) -> None:
-    products = get_products(moltin_token)['data']
-    products_per_page = list(chunked(products, quantity_per_page))
+    products = await get_products(moltin_token)
+    products_per_page = list(chunked(products['data'], quantity_per_page))
 
     reply_markup = get_products_menu(products_per_page, page)
     await context.bot.send_message(text='Пожалуйста, выберите товар:',
@@ -137,7 +137,7 @@ async def send_product_description(context: CallbackContext.DEFAULT_TYPE,
                                            action='typing')
 
         moltin_token = context.bot_data['moltin_token']
-        img_url = get_product_main_image_url(moltin_token, image_id)
+        img_url = await get_product_main_image_url(moltin_token, image_id)
 
         await context.bot.send_photo(chat_id=chat_id,
                                      photo=img_url,
