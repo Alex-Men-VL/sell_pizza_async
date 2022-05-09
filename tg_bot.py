@@ -233,7 +233,7 @@ async def handle_location(update: Update,
         coordinates = user_location.longitude, user_location.latitude
     except AttributeError:
         yandex_api_key = context.bot_data['yandex_api_key']
-        coordinates = fetch_coordinates(user_location, yandex_api_key)
+        coordinates = await fetch_coordinates(user_location, yandex_api_key)
     if not coordinates:
         await update.message.reply_text(
             text='Не могу распознать этот адрес, повторите попытку.'

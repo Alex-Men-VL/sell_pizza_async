@@ -1,27 +1,28 @@
 from typing import Tuple, List, Union, Dict
 
-import requests
+import aiohttp
 from geopy import distance
 
 
-def fetch_coordinates(address: str,
-                      yandex_api_key: str) -> Union[None, Tuple[str, str]]:
+async def fetch_coordinates(
+        address: str,
+        yandex_api_key: str) -> Union[None, Tuple[str, str]]:
     url = 'https://geocode-maps.yandex.ru/1.x'
-    apikey = yandex_api_key
     params = {
         'geocode': address,
-        'apikey': apikey,
+        'apikey': yandex_api_key,
         'format': 'json',
     }
-    response = requests.get(url, params=params)
-    response.raise_for_status()
+    async with aiohttp.ClientSession(raise_for_status=True) as session:
+        async with session.get(url, params=params) as response:
+            places = await response.json()
 
-    found_places = response.json()['response'][
+    found_places = places['response'][
         'GeoObjectCollection'
     ]['featureMember']
 
     if not found_places:
-        return None
+        return
 
     most_relevant_place = found_places[0]
     lon, lat = most_relevant_place['GeoObject']['Point']['pos'].split(" ")
@@ -30,9 +31,7 @@ def fetch_coordinates(address: str,
 
 def get_nearest_restaurant(
         order_coordinates: Tuple[str, str],
-        restaurants: List[Dict[str, str]]
-) -> Dict[str, str]:
-
+        restaurants: List[Dict[str, str]]) -> Dict[str, str]:
     distances = []
     order_lon, order_lat = order_coordinates
     for restaurant in restaurants:
