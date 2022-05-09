@@ -12,6 +12,7 @@ from telegram import (
     InlineKeyboardMarkup,
     BotCommand
 )
+from telegram.constants import ParseMode
 from telegram.ext import (
     filters,
     Application,
@@ -43,7 +44,7 @@ from tg_lib import (
     send_product_description,
     send_main_menu, parse_cart,
     send_delivery_option,
-    # send_order_reminder,
+    send_order_reminder,
     # send_payment_invoice,
     # generate_payment_payload,
 )
@@ -236,75 +237,80 @@ async def handle_location(update: Update,
     return 'HANDLE_DELIVERY'
 
 
-# def handle_delivery(update, context):
-#     chat_id = context.user_data['chat_id']
-#     user_reply = context.user_data['user_reply']
-#     moltin_token = context.bot_data['moltin_token']
-#
-#     user_cart = get_cart_items(moltin_token, chat_id)
-#     cart_description = parse_cart(user_cart)
-#     context.user_data['cart_price'] = cart_description['total_price']
-#     nearest_restaurant = context.user_data['nearest_restaurant']
-#
-#     if user_reply == 'pickup':
-#         message = '''
-#         Вы выбрали самовывоз.
-#
-#         Ваш заказ:'''
-#         context.bot.send_message(
-#             chat_id=chat_id,
-#             text=dedent(message)
-#         )
-#         send_cart_description(context, cart_description, with_keyboard=False)
-#         context.bot.send_message(
-#             chat_id=chat_id,
-#             text='Адрес пиццерии:'
-#         )
-#         context.bot.send_location(chat_id,
-#                                   latitude=nearest_restaurant['lat'],
-#                                   longitude=nearest_restaurant['lon'])
-#     elif user_reply == 'delivery':
-#         lon, lat = context.user_data['delivery_coordinates']
-#         courier_id = nearest_restaurant['courier_id']
-#         message = f'''
-#             Новый заказ!
-#
-#             Из ресторана по адресу: {nearest_restaurant['address']}
-#
-#             Содержимое заказа:'''
-#         context.bot.send_message(chat_id=courier_id,
-#                                  text=dedent(message))
-#         send_cart_description(context, cart_description, with_keyboard=False,
-#                               chat_id=courier_id)
-#         context.bot.send_message(
-#             chat_id=courier_id,
-#             text='Адрес заказа:'
-#         )
-#         context.bot.send_location(chat_id=courier_id,
-#                                   latitude=lat,
-#                                   longitude=lon)
-#
-#         context.bot.send_message(
-#             chat_id=chat_id,
-#             text='Спасибо за заказ! Ожидайте доставки'
-#         )
-#         context.job_queue.run_once(send_order_reminder, 3600, context=chat_id)
-#     else:
-#         return 'HANDLE_DELIVERY'
-#
-#     button = [
-#         [InlineKeyboardButton(text='Оплатить', callback_data='pay_now')]
-#     ]
-#     context.bot.send_message(
-#         chat_id=chat_id,
-#         text='Для оплаты нажмите кнопку *Оплатить*',
-#         reply_markup=InlineKeyboardMarkup(button),
-#         parse_mode=ParseMode.MARKDOWN_V2
-#     )
-#
-#     return 'HANDLE_PAYMENT'
-#
-#
+async def handle_delivery(update: Update,
+                          context: CallbackContext.DEFAULT_TYPE) -> str:
+    chat_id = context.user_data['chat_id']
+    message_id = context.user_data['message_id']
+    user_reply = context.user_data['user_reply']
+    moltin_token = context.bot_data['moltin_token']
+
+    user_cart = get_cart_items(moltin_token, chat_id)
+    cart_description = parse_cart(user_cart)
+    context.user_data['cart_price'] = cart_description['total_price']
+    nearest_restaurant = context.user_data['nearest_restaurant']
+
+    if user_reply == 'pickup':
+        message = '''
+        Вы выбрали самовывоз.
+
+        Ваш заказ:'''
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=dedent(message)
+        )
+        await send_cart_description(context, cart_description, chat_id,
+                                    message_id, with_keyboard=False)
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text='Адрес пиццерии:'
+        )
+        await context.bot.send_location(chat_id,
+                                        latitude=nearest_restaurant['lat'],
+                                        longitude=nearest_restaurant['lon'])
+    elif user_reply == 'delivery':
+        lon, lat = context.user_data['delivery_coordinates']
+        courier_id = nearest_restaurant['courier_id']
+        message = f'''
+            Новый заказ!
+
+            Из ресторана по адресу: {nearest_restaurant['address']}
+
+            Содержимое заказа:'''
+        await context.bot.send_message(chat_id=courier_id,
+                                       text=dedent(message))
+        await send_cart_description(context, cart_description,
+                                    chat_id, message_id,
+                                    with_keyboard=False)
+        await context.bot.send_message(
+            chat_id=courier_id,
+            text='Адрес заказа:'
+        )
+        await context.bot.send_location(chat_id=courier_id,
+                                        latitude=lat,
+                                        longitude=lon)
+
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text='Спасибо за заказ! Ожидайте доставки'
+        )
+        context.job_queue.run_once(send_order_reminder, when=3600,
+                                   context=chat_id)
+    else:
+        return 'HANDLE_DELIVERY'
+
+    button = [
+        [InlineKeyboardButton(text='Оплатить', callback_data='pay_now')]
+    ]
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text='Для оплаты нажмите кнопку *Оплатить*',
+        reply_markup=InlineKeyboardMarkup(button),
+        parse_mode=ParseMode.MARKDOWN_V2
+    )
+
+    return 'HANDLE_PAYMENT'
+
+
 # def handle_payment(update, context):
 #     chat_id = context.user_data['chat_id']
 #     message_id = context.user_data['message_id']
@@ -385,7 +391,7 @@ async def handle_users_reply(update: Update,
         'HANDLE_CART': handle_cart,
         'WAITING_EMAIL': handle_email,
         'HANDLE_LOCATION': handle_location,
-        # 'HANDLE_DELIVERY': handle_delivery,
+        'HANDLE_DELIVERY': handle_delivery,
         # 'HANDLE_PAYMENT': handle_payment
     }
     state_handler = states_functions[user_state]

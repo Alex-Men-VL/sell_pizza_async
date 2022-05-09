@@ -193,14 +193,14 @@ async def send_delivery_option(update: Update, restaurant: dict) -> None:
                                     reply_markup=InlineKeyboardMarkup(buttons))
 
 
-# def send_order_reminder(context):
-#     message = '''
-#     *место для рекламы*
-#     *сообщение что делать если пицца не пришла*'''
-#     context.bot.send_message(chat_id=context.job.context,
-#                              text=dedent(message))
-#
-#
+async def send_order_reminder(context: CallbackContext.DEFAULT_TYPE) -> None:
+    message = '''
+    *место для рекламы*
+    *сообщение что делать если пицца не пришла*'''
+    await context.bot.send_message(chat_id=context.job.context,
+                                   text=dedent(message))
+
+
 # def generate_payment_payload(update):
 #     query = update.callback_query.message
 #     first_name = query.chat.first_name
