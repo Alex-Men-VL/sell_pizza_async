@@ -1,5 +1,5 @@
 from textwrap import dedent
-from typing import Union, Dict, Tuple
+from typing import Union, Dict, Tuple, Any
 
 from more_itertools import chunked
 from telegram import (
@@ -61,7 +61,7 @@ def get_products_menu(products: list, page: int) -> InlineKeyboardMarkup:
 
 
 async def send_cart_description(context: CallbackContext.DEFAULT_TYPE,
-                                cart_description: dict,
+                                cart_description: Dict[str, Any],
                                 chat_id: str, message_id: str,
                                 with_keyboard: bool = True) -> None:
     cart_items = cart_description['cart_description']
@@ -111,7 +111,7 @@ async def send_cart_description(context: CallbackContext.DEFAULT_TYPE,
 
 
 async def send_product_description(context: CallbackContext.DEFAULT_TYPE,
-                                   product_description: dict,
+                                   product_description: Dict[str, str],
                                    chat_id: str, message_id: str) -> None:
     message = f'''\
     {product_description['name']}
@@ -152,7 +152,8 @@ async def send_product_description(context: CallbackContext.DEFAULT_TYPE,
                                             reply_markup=reply_markup)
 
 
-async def send_delivery_option(update: Update, restaurant: dict) -> None:
+async def send_delivery_option(update: Update,
+                               restaurant: Dict[str, Any]) -> None:
     distance = restaurant["distance_km"]
     if distance < 0.5:
         delivery = True
@@ -225,7 +226,7 @@ async def send_payment_invoice(context: CallbackContext.DEFAULT_TYPE,
     )
 
 
-def parse_cart(cart: dict) -> dict:
+def parse_cart(cart: dict) -> Dict[str, Any]:
     total_price = cart['meta']['display_price']['with_tax']['formatted']
     cart_description = []
 
@@ -253,7 +254,7 @@ def parse_cart(cart: dict) -> dict:
     }
 
 
-def clean_user_data(user_data: Dict, keys: Tuple[str, ...]) -> None:
+def clean_user_data(user_data: Dict[str, Any], keys: Tuple[str, ...]) -> None:
     for key in keys:
         if key in user_data:
             del user_data[key]

@@ -333,8 +333,7 @@ async def handle_delivery(update: Update,
 
 async def handle_payment(
         update: Update,
-        context: CallbackContext.DEFAULT_TYPE
-) -> Union[str, None]:
+        context: CallbackContext.DEFAULT_TYPE) -> Union[str, None]:
     chat_id = context.user_data['chat_id']
     message_id = context.user_data['message_id']
     user_reply = context.user_data['user_reply']
@@ -364,8 +363,7 @@ async def precheckout_callback(update: Update,
 
 async def successful_payment_callback(
         update: Update,
-        context: CallbackContext.DEFAULT_TYPE
-) -> None:
+        context: CallbackContext.DEFAULT_TYPE) -> None:
     chat_id = update.message.chat_id
     moltin_token = context.bot_data['moltin_token']
 

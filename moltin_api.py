@@ -1,8 +1,11 @@
+from typing import Dict, Union, List, Any
+
 import aiohttp
 from slugify import slugify
 
 
-async def get_access_token(client_id, client_secret):
+async def get_access_token(client_id: str,
+                           client_secret: str) -> Dict[str, str]:
     url = 'https://api.moltin.com/oauth/access_token'
     payload = {
         'client_id': client_id,
@@ -14,7 +17,7 @@ async def get_access_token(client_id, client_secret):
             return await response.json()
 
 
-async def get_products(access_token):
+async def get_products(access_token: str) -> Dict[str, str]:
     url = 'https://api.moltin.com/v2/products'
     headers = {
         'Authorization': f'Bearer {access_token}',
@@ -25,7 +28,8 @@ async def get_products(access_token):
             return await response.json()
 
 
-async def get_product(access_token, product_id):
+async def get_product(access_token: str,
+                      product_id: Union[str, int]) -> Dict[str, Any]:
     url = f'https://api.moltin.com/v2/products/{product_id}'
     headers = {
         'Authorization': f'Bearer {access_token}',
@@ -36,7 +40,8 @@ async def get_product(access_token, product_id):
             return await response.json()
 
 
-async def get_product_main_image_url(access_token, image_id):
+async def get_product_main_image_url(access_token: str,
+                                     image_id: Union[str, int]) -> str:
     url = f'https://api.moltin.com/v2/files/{image_id}'
     headers = {
         'Authorization': f'Bearer {access_token}'
@@ -48,8 +53,10 @@ async def get_product_main_image_url(access_token, image_id):
     return main_image['data']['link']['href']
 
 
-async def create_product(access_token, product_id, name, description,
-                         price, slug=None):
+async def create_product(access_token: str, product_id: Union[str, int],
+                         name: str, description: str,
+                         price: Union[str, int, float],
+                         slug: str = None) -> Dict[str, str]:
     url = 'https://api.moltin.com/v2/products'
     headers = {
         'Authorization': f'Bearer {access_token}',
@@ -79,7 +86,9 @@ async def create_product(access_token, product_id, name, description,
             return await response.json()
 
 
-async def add_product_main_image(access_token, product_id, image_id):
+async def add_product_main_image(access_token: str,
+                                 product_id: Union[str, int],
+                                 image_id: Union[str, int]) -> Dict[str, str]:
     url = f'https://api.moltin.com/v2/products/{product_id}/relationships/main-image'
     headers = {
         'Authorization': f'Bearer {access_token}',
@@ -96,18 +105,18 @@ async def add_product_main_image(access_token, product_id, image_id):
             return await response.json()
 
 
-async def delete_product(access_token, product_id):
+async def delete_product(access_token: str, product_id: str) -> bool:
     url = f'https://api.moltin.com/v2/products/{product_id}'
     headers = {
         'Authorization': f'Bearer {access_token}'
     }
-    async with aiohttp.ClientSession(raise_for_status=True,
-                                     headers=headers) as session:
+    async with aiohttp.ClientSession(headers=headers) as session:
         async with session.delete(url) as response:
             return response.ok
 
 
-async def get_or_create_cart(access_token, cart_id, currency='RUB'):
+async def get_or_create_cart(access_token: str, cart_id: Union[str, int],
+                             currency: str = 'RUB') -> Dict[str, Any]:
     url = f'https://api.moltin.com/v2/carts/{cart_id}'
     headers = {
         'Authorization': f'Bearer {access_token}',
@@ -119,7 +128,8 @@ async def get_or_create_cart(access_token, cart_id, currency='RUB'):
             return await response.json()
 
 
-async def get_cart_items(access_token, cart_id):
+async def get_cart_items(access_token: str,
+                         cart_id: Union[str, int]) -> Dict[str, str]:
     url = f'https://api.moltin.com/v2/carts/{cart_id}/items'
     headers = {
         'Authorization': f'Bearer {access_token}',
@@ -130,8 +140,10 @@ async def get_cart_items(access_token, cart_id):
             return await response.json()
 
 
-async def add_cart_item(access_token, cart_id, item_id,
-                        item_quantity, currency='RUB'):
+async def add_cart_item(access_token: str, cart_id: Union[str, int],
+                        item_id: Union[str, int],
+                        item_quantity: Union[str, int],
+                        currency: str = 'RUB') -> Dict[str, str]:
     url = f'https://api.moltin.com/v2/carts/{cart_id}/items'
     headers = {
         'Authorization': f'Bearer {access_token}',
@@ -151,7 +163,8 @@ async def add_cart_item(access_token, cart_id, item_id,
             return await response.json()
 
 
-async def remove_cart_item(access_token, cart_id, item_id):
+async def remove_cart_item(access_token: str, cart_id: Union[str, int],
+                           item_id: Union[str, int]) -> bool:
     url = f'https://api.moltin.com/v2/carts/{cart_id}/items/{item_id}'
     headers = {
         'Authorization': f'Bearer {access_token}'
@@ -162,7 +175,7 @@ async def remove_cart_item(access_token, cart_id, item_id):
             return response.ok
 
 
-async def delete_cart(access_token, cart_id):
+async def delete_cart(access_token: str, cart_id: Union[str, int]) -> bool:
     url = f'https://api.moltin.com/v2/carts/{cart_id}'
     headers = {
         'Authorization': f'Bearer {access_token}'
@@ -173,7 +186,8 @@ async def delete_cart(access_token, cart_id):
             return response.ok
 
 
-async def get_customer_by_email(access_token, email):
+async def get_customer_by_email(access_token: str,
+                                email: str) -> Dict[str, str]:
     url = f'https://api.moltin.com/v2/customers'
     headers = {
         'Authorization': f'Bearer {access_token}',
@@ -187,7 +201,8 @@ async def get_customer_by_email(access_token, email):
             return await response.json()
 
 
-async def create_customer(access_token, email, name: str = None):
+async def create_customer(access_token: str, email: str,
+                          name: str = None) -> Dict[str, str]:
     url = 'https://api.moltin.com/v2/customers'
     headers = {
         'Authorization': f'Bearer {access_token}',
@@ -206,15 +221,15 @@ async def create_customer(access_token, email, name: str = None):
             return await response.json()
 
 
-async def get_or_create_customer_by_email(access_token, email,
-                                          name: str = None):
+async def get_or_create_customer_by_email(access_token: str, email: str,
+                                          name: str = None) -> Dict[str, str]:
     customer = await get_customer_by_email(access_token, email)
     if not customer['data']:
         customer = await create_customer(access_token, email, name)
     return customer
 
 
-async def create_file(access_token, file_url):
+async def create_file(access_token: str, file_url: str) -> Dict[str, str]:
     url = 'https://api.moltin.com/v2/files'
     headers = {
         'Authorization': f'Bearer {access_token}',
@@ -228,8 +243,9 @@ async def create_file(access_token, file_url):
             return await response.json()
 
 
-async def create_flow(access_token, name, description, slug=None,
-                      enabled=True):
+async def create_flow(access_token: str, name: str, description: str,
+                      slug: str = None,
+                      enabled: bool = True) -> Dict[str, str]:
     url = 'https://api.moltin.com/v2/flows'
     headers = {
         'Authorization': f'Bearer {access_token}'
@@ -249,10 +265,11 @@ async def create_flow(access_token, name, description, slug=None,
             return await response.json()
 
 
-async def create_flow_field(access_token, flow_id, name, field_type,
-                            description,
-                            slug=None, required=True, enabled=True,
-                            default=None):
+async def create_flow_field(
+        access_token: str, flow_id: Union[str, int], name: str,
+        field_type: str, description: str, slug: str = None,
+        required: bool = True, enabled: bool = True,
+        default: Union[str, int] = None) -> Dict[str, str]:
     url = 'https://api.moltin.com/v2/fields'
     headers = {
         'Authorization': f'Bearer {access_token}'
@@ -284,8 +301,9 @@ async def create_flow_field(access_token, flow_id, name, field_type,
             return await response.json()
 
 
-async def create_flow_entry(access_token, flow_slug,
-                            fields_slug_per_value: dict):
+async def create_flow_entry(
+        access_token: str, flow_slug: str,
+        fields_slug_per_value: Dict[str, str]) -> Dict[str, str]:
     url = f'https://api.moltin.com/v2/flows/{flow_slug}/entries'
     headers = {
         'Authorization': f'Bearer {access_token}'
@@ -302,7 +320,8 @@ async def create_flow_entry(access_token, flow_slug,
             return await response.json()
 
 
-async def get_entries(access_token, flow_slug, next_page_url: str = None):
+async def get_entries(access_token: str, flow_slug: str,
+                      next_page_url: str = None) -> Dict[str, Any]:
     url = next_page_url or f'https://api.moltin.com/v2/flows/{flow_slug}/entries'
     headers = {
         'Authorization': f'Bearer {access_token}'
@@ -316,7 +335,7 @@ async def get_entries(access_token, flow_slug, next_page_url: str = None):
             return await response.json()
 
 
-async def get_available_entries(moltin_token, flow_slug):
+async def get_available_entries(moltin_token, flow_slug) -> List:
     available_entries = []
     entries = await get_entries(moltin_token, flow_slug=flow_slug)
     available_entries += entries['data']
