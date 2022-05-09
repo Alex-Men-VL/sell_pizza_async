@@ -3,9 +3,11 @@ from textwrap import dedent
 from more_itertools import chunked
 from telegram import (
     InlineKeyboardButton,
-    InlineKeyboardMarkup,
-    LabeledPrice
+    InlineKeyboardMarkup
 )
+from telegram.constants import ParseMode
+from telegram.ext import CallbackContext
+from telegram.helpers import escape_markdown
 
 from moltin_api import (
     get_product_main_image_url,
@@ -13,8 +15,9 @@ from moltin_api import (
 )
 
 
-async def send_main_menu(context, chat_id, message_id, moltin_token, page,
-                         quantity_per_page=8):
+async def send_main_menu(context: CallbackContext.DEFAULT_TYPE,
+                         chat_id: str, message_id: str, moltin_token: str,
+                         page: int, quantity_per_page: int = 8) -> None:
     products = get_products(moltin_token)['data']
     products_per_page = list(chunked(products, quantity_per_page))
 
@@ -26,7 +29,7 @@ async def send_main_menu(context, chat_id, message_id, moltin_token, page,
                                      message_id=message_id)
 
 
-def get_products_menu(products, page):
+def get_products_menu(products: list, page: int) -> InlineKeyboardMarkup:
     parsed_products = {
         product['name']: product['id'] for product in products[page - 1]
     }
@@ -55,96 +58,96 @@ def get_products_menu(products, page):
     return InlineKeyboardMarkup(keyboard)
 
 
-# def send_cart_description(context, cart_description, with_keyboard=True,
-#                           chat_id=None):
-#     cart_items = cart_description['cart_description']
-#     if not cart_items:
-#         message = 'К сожалению, ваша корзина пуста :c'
-#         reply_markup = InlineKeyboardMarkup(
-#             [[InlineKeyboardButton(text='Назад', callback_data='menu')]]
-#         )
-#     else:
-#         message = ''
-#         buttons = []
-#         for item in cart_items:
-#             name = escape_markdown(item['name'], version=2)
-#             description = escape_markdown(item['description'], version=2)
-#             value_price = escape_markdown(item['value_price'], version=2)
-#
-#             message += f'''
-#             *{name}*
-#             _{description}_
-#             {item['quantity']} пицц в корзине на сумму {value_price}
-#
-#             '''
-#             buttons.append([
-#                 InlineKeyboardButton(
-#                     text=f'Убрать из корзины {item["name"]}',
-#                     callback_data=item['id']
-#                 )
-#             ])
-#         total_price = escape_markdown(cart_description["total_price"],
-#                                       version=2)
-#         message += f'*К оплате: {total_price}*'
-#         buttons.append(
-#             [InlineKeyboardButton(text='Оплатить', callback_data='pay')]
-#         )
-#         buttons.append(
-#             [InlineKeyboardButton(text='В меню', callback_data='menu')]
-#         )
-#         reply_markup = InlineKeyboardMarkup(buttons)
-#
-#     chat_id = chat_id if chat_id else context.user_data['chat_id']
-#     message_id = context.user_data['message_id']
-#     reply_markup = reply_markup if with_keyboard else None
-#     context.bot.send_message(chat_id=chat_id,
-#                              text=dedent(message),
-#                              reply_markup=reply_markup,
-#                              parse_mode=ParseMode.MARKDOWN_V2)
-#     context.bot.delete_message(chat_id=chat_id,
-#                                message_id=message_id)
-#
-#
-# def send_product_description(context, product_description):
-#     message = f'''\
-#     {product_description['name']}
-#
-#     Стоимость: {product_description['price']} руб.
-#
-#     {product_description['description']}
-#     '''
-#     chat_id = context.user_data['chat_id']
-#     message_id = context.user_data['message_id']
-#
-#     reply_markup = InlineKeyboardMarkup(
-#         [
-#             [InlineKeyboardButton(text='Положить в корзину',
-#                                   callback_data='add')],
-#
-#             [InlineKeyboardButton(text='В меню', callback_data='menu')]
-#         ]
-#     )
-#
-#     if image_id := product_description['image_id']:
-#         context.bot.send_chat_action(chat_id=chat_id,
-#                                      action='typing')
-#
-#         moltin_token = context.bot_data['moltin_token']
-#         img_url = get_product_main_image_url(moltin_token, image_id)
-#
-#         context.bot.send_photo(chat_id=chat_id,
-#                                photo=img_url,
-#                                caption=dedent(message),
-#                                reply_markup=reply_markup)
-#         context.bot.delete_message(chat_id=chat_id,
-#                                    message_id=message_id)
-#     else:
-#         context.bot.edit_message_text(text=dedent(message),
-#                                       chat_id=chat_id,
-#                                       message_id=message_id,
-#                                       reply_markup=reply_markup)
-#
-#
+async def send_cart_description(context: CallbackContext.DEFAULT_TYPE,
+                                cart_description: dict,
+                                chat_id: str, message_id: str,
+                                with_keyboard: bool = True) -> None:
+    cart_items = cart_description['cart_description']
+    if not cart_items:
+        message = 'К сожалению, ваша корзина пуста :c'
+        reply_markup = InlineKeyboardMarkup(
+            [[InlineKeyboardButton(text='Назад', callback_data='menu')]]
+        )
+    else:
+        message = ''
+        buttons = []
+        for item in cart_items:
+            name = escape_markdown(item['name'], version=2)
+            description = escape_markdown(item['description'], version=2)
+            value_price = escape_markdown(item['value_price'], version=2)
+
+            message += f'''
+            *{name}*
+            _{description}_
+            {item['quantity']} пицц в корзине на сумму {value_price}
+
+            '''
+            buttons.append([
+                InlineKeyboardButton(
+                    text=f'Убрать из корзины {item["name"]}',
+                    callback_data=item['id']
+                )
+            ])
+        total_price = escape_markdown(cart_description["total_price"],
+                                      version=2)
+        message += f'*К оплате: {total_price}*'
+        buttons.append(
+            [InlineKeyboardButton(text='Оплатить', callback_data='pay')]
+        )
+        buttons.append(
+            [InlineKeyboardButton(text='В меню', callback_data='menu')]
+        )
+        reply_markup = InlineKeyboardMarkup(buttons)
+
+    reply_markup = reply_markup if with_keyboard else None
+    await context.bot.send_message(chat_id=chat_id,
+                                   text=dedent(message),
+                                   reply_markup=reply_markup,
+                                   parse_mode=ParseMode.MARKDOWN_V2)
+    await context.bot.delete_message(chat_id=chat_id,
+                                     message_id=message_id)
+
+
+async def send_product_description(context: CallbackContext.DEFAULT_TYPE,
+                                   product_description: dict,
+                                   chat_id: str, message_id: str) -> None:
+    message = f'''\
+    {product_description['name']}
+
+    Стоимость: {product_description['price']} руб.
+
+    {product_description['description']}
+    '''
+
+    reply_markup = InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton(text='Положить в корзину',
+                                  callback_data='add')],
+
+            [InlineKeyboardButton(text='В меню', callback_data='menu')]
+        ]
+    )
+
+    if image_id := product_description['image_id']:
+        await context.bot.send_chat_action(chat_id=chat_id,
+                                           action='typing')
+
+        moltin_token = context.bot_data['moltin_token']
+        img_url = get_product_main_image_url(moltin_token, image_id)
+
+        await context.bot.send_photo(chat_id=chat_id,
+                                     photo=img_url,
+                                     caption=dedent(message),
+                                     reply_markup=reply_markup)
+        await context.bot.delete_message(chat_id=chat_id,
+                                         message_id=message_id)
+    else:
+        await context.bot.edit_message_text(text=dedent(message),
+                                            chat_id=chat_id,
+                                            message_id=message_id,
+                                            reply_markup=reply_markup)
+
+
 # def send_delivery_option(update, restaurant):
 #     distance = restaurant["distance_km"]
 #     if distance < 0.5:
@@ -214,7 +217,7 @@ def get_products_menu(products, page):
 #     context.bot.send_invoice(
 #         chat_id, title, description, payload, provider_token, currency, prices
 #     )
-def parse_cart(cart):
+def parse_cart(cart: dict) -> dict:
     total_price = cart['meta']['display_price']['with_tax']['formatted']
     cart_description = []
 

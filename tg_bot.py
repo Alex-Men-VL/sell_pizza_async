@@ -38,8 +38,8 @@ from moltin_api import (
 )
 from redis_persistence import RedisPersistence
 from tg_lib import (
-    # send_cart_description,
-    # send_product_description,
+    send_cart_description,
+    send_product_description,
     send_main_menu, parse_cart,
     # send_delivery_option,
     # send_order_reminder,
@@ -51,7 +51,8 @@ from coordinate_utils import fetch_coordinates, get_nearest_restaurant
 logger = logging.getLogger(__file__)
 
 
-async def handle_start(update: Update, context: CallbackContext.DEFAULT_TYPE):
+async def handle_start(update: Update,
+                       context: CallbackContext.DEFAULT_TYPE) -> str:
     chat_id = context.user_data['chat_id']
     message_id = context.user_data['message_id']
     moltin_token = context.bot_data['moltin_token']
@@ -60,43 +61,46 @@ async def handle_start(update: Update, context: CallbackContext.DEFAULT_TYPE):
     return 'HANDLE_MENU'
 
 
-# def handle_menu(update, context):
-#     chat_id = context.user_data['chat_id']
-#     message_id = context.user_data['message_id']
-#     user_reply = context.user_data['user_reply']
-#     moltin_token = context.bot_data['moltin_token']
-#
-#     if user_reply == 'cart':
-#         user_cart = get_cart_items(moltin_token, chat_id)
-#         cart_description = parse_cart(user_cart)
-#         send_cart_description(context, cart_description)
-#         return 'HANDLE_CART'
-#     elif user_reply.isdigit():
-#         page = int(user_reply)
-#         context.user_data['current_page'] = page
-#         send_main_menu(context, chat_id, message_id, moltin_token,
-#                        page=page)
-#         return 'HANDLE_MENU'
-#
-#     context.user_data['product_id'] = user_reply
-#
-#     product = get_product(moltin_token, user_reply)
-#     product_main_image = product['data']['relationships'].get('main_image')
-#
-#     product_description = {
-#         'name': product['data']['name'],
-#         'description': product['data']['description'],
-#         'price': product['data']['meta']['display_price']['with_tax'][
-#             'formatted'
-#         ],
-#         'image_id': product_main_image['data']['id'] if product_main_image
-#         else ''
-#     }
-#
-#     send_product_description(context, product_description)
-#     return 'HANDLE_DESCRIPTION'
-#
-#
+async def handle_menu(update: Update,
+                      context: CallbackContext.DEFAULT_TYPE) -> str:
+    chat_id = context.user_data['chat_id']
+    message_id = context.user_data['message_id']
+    user_reply = context.user_data['user_reply']
+    moltin_token = context.bot_data['moltin_token']
+
+    if user_reply == 'cart':
+        user_cart = get_cart_items(moltin_token, chat_id)
+        cart_description = parse_cart(user_cart)
+        await send_cart_description(context, cart_description,
+                                    chat_id, message_id)
+        return 'HANDLE_CART'
+    elif user_reply.isdigit():
+        page = int(user_reply)
+        context.user_data['current_page'] = page
+        await send_main_menu(context, chat_id, message_id, moltin_token,
+                             page=page)
+        return 'HANDLE_MENU'
+
+    context.user_data['product_id'] = user_reply
+
+    product = get_product(moltin_token, user_reply)
+    product_main_image = product['data']['relationships'].get('main_image')
+
+    product_description = {
+        'name': product['data']['name'],
+        'description': product['data']['description'],
+        'price': product['data']['meta']['display_price']['with_tax'][
+            'formatted'
+        ],
+        'image_id': product_main_image['data']['id'] if product_main_image
+        else ''
+    }
+
+    await send_product_description(context, product_description,
+                                   chat_id, message_id)
+    return 'HANDLE_DESCRIPTION'
+
+
 # def handle_description(update, context):
 #     chat_id = context.user_data['chat_id']
 #     message_id = context.user_data['message_id']
@@ -334,7 +338,7 @@ async def handle_start(update: Update, context: CallbackContext.DEFAULT_TYPE):
 
 
 async def handle_users_reply(update: Update,
-                             context: CallbackContext.DEFAULT_TYPE):
+                             context: CallbackContext.DEFAULT_TYPE) -> None:
     if message := update.message:
         user_reply = message.text if message.text else message.location
         chat_id = message.chat_id
@@ -373,7 +377,7 @@ async def handle_users_reply(update: Update,
         user_state = context.user_data['state']
     states_functions = {
         'START': handle_start,
-        # 'HANDLE_MENU': handle_menu,
+        'HANDLE_MENU': handle_menu,
         # 'HANDLE_DESCRIPTION': handle_description,
         # 'HANDLE_CART': handle_cart,
         # 'WAITING_EMAIL': handle_email,
@@ -390,7 +394,7 @@ async def handle_users_reply(update: Update,
         logger.error(err)
 
 
-def main():
+def main() -> None:
     env = Env()
     env.read_env()
 
