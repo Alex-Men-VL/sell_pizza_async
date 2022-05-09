@@ -101,36 +101,37 @@ async def handle_menu(update: Update,
     return 'HANDLE_DESCRIPTION'
 
 
-# def handle_description(update, context):
-#     chat_id = context.user_data['chat_id']
-#     message_id = context.user_data['message_id']
-#     moltin_token = context.bot_data['moltin_token']
-#     product_id = context.user_data['product_id']
-#     user_reply = context.user_data['user_reply']
-#
-#     if user_reply == 'menu':
-#         current_page = context.user_data['current_page']
-#         send_main_menu(context, chat_id, message_id, moltin_token,
-#                        page=current_page)
-#         return 'HANDLE_MENU'
-#     elif user_reply == 'add':
-#         user_cart = get_or_create_cart(moltin_token, chat_id)
-#         try:
-#             add_cart_item(moltin_token, user_cart['data']['id'],
-#                           product_id, item_quantity=1)
-#         except requests.exceptions.HTTPError:
-#             context.bot.answer_callback_query(
-#                 callback_query_id=update.callback_query.id,
-#                 text='Не удалось добавить товар в корзину'
-#             )
-#         else:
-#             context.bot.answer_callback_query(
-#                 callback_query_id=update.callback_query.id,
-#                 text='Товар добавлен в корзину'
-#             )
-#     return 'HANDLE_DESCRIPTION'
-#
-#
+async def handle_description(update: Update,
+                             context: CallbackContext.DEFAULT_TYPE) -> str:
+    chat_id = context.user_data['chat_id']
+    message_id = context.user_data['message_id']
+    moltin_token = context.bot_data['moltin_token']
+    product_id = context.user_data['product_id']
+    user_reply = context.user_data['user_reply']
+
+    if user_reply == 'menu':
+        current_page = context.user_data['current_page']
+        await send_main_menu(context, chat_id, message_id, moltin_token,
+                             page=current_page)
+        return 'HANDLE_MENU'
+    elif user_reply == 'add':
+        user_cart = get_or_create_cart(moltin_token, chat_id)
+        try:
+            add_cart_item(moltin_token, user_cart['data']['id'],
+                          product_id, item_quantity=1)
+        except requests.exceptions.HTTPError:
+            await context.bot.answer_callback_query(
+                callback_query_id=update.callback_query.id,
+                text='Не удалось добавить товар в корзину'
+            )
+        else:
+            await context.bot.answer_callback_query(
+                callback_query_id=update.callback_query.id,
+                text='Товар добавлен в корзину'
+            )
+    return 'HANDLE_DESCRIPTION'
+
+
 # def handle_cart(update, context):
 #     chat_id = context.user_data['chat_id']
 #     message_id = context.user_data['message_id']
@@ -378,7 +379,7 @@ async def handle_users_reply(update: Update,
     states_functions = {
         'START': handle_start,
         'HANDLE_MENU': handle_menu,
-        # 'HANDLE_DESCRIPTION': handle_description,
+        'HANDLE_DESCRIPTION': handle_description,
         # 'HANDLE_CART': handle_cart,
         # 'WAITING_EMAIL': handle_email,
         # 'HANDLE_LOCATION': handle_location,
@@ -431,9 +432,6 @@ def main() -> None:
     application.add_handler(
         MessageHandler(filters.TEXT | filters.LOCATION, handle_users_reply)
     )
-    # application.add_handler(
-    #     CommandHandler('start', handle_users_reply)
-    # )
     # application.add_handler(
     #     PreCheckoutQueryHandler(precheckout_callback)
     # )
