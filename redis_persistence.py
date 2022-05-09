@@ -64,11 +64,32 @@ class RedisPersistence(BasePersistence[UD, CD, BD]):
         for key, value in self._initial_data.items():
             if key not in valid_keys or not isinstance(value, dict):
                 continue
-            data[f'_{key}'] = value
-        if data:
-            data_bytes = pickle.dumps(data)
-            await self._redis_pool_set(self.redis_key, data_bytes)
-            logger.info('БД успешно проинициализирована')
+            data[key] = value
+        data_bytes = await self._redis_pool_get(self.redis_key)
+        if data_bytes is None:
+            self.conversations = {}
+            self.user_data = data.get('user_data', defaultdict(dict))
+            self.chat_data = data.get('chat_data', defaultdict(dict))
+            self.bot_data = data.get('bot_data', {})
+        else:
+            db_data = pickle.loads(data_bytes)
+            self.user_data = defaultdict(
+                dict, db_data.get('_user_data', {})
+            )
+            self.user_data.update(data.get('user_data', {}))
+
+            self.chat_data = defaultdict(
+                dict, db_data.get('_chat_data', {})
+            )
+            self.chat_data.update(data.get('chat_data', {}))
+
+            self.bot_data = data.get('_bot_data', {})
+            self.bot_data.update(data.get('bot_data', {}))
+
+            self.conversations = data.get('_conversations', {})
+
+        await self._dump_redis()
+        logger.info('БД успешно проинициализирована')
 
     async def _load_redis(self) -> None:
         if self._initial_data:
