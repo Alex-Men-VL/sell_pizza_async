@@ -42,7 +42,7 @@ from tg_lib import (
     send_cart_description,
     send_product_description,
     send_main_menu, parse_cart,
-    # send_delivery_option,
+    send_delivery_option,
     # send_order_reminder,
     # send_payment_invoice,
     # generate_payment_payload,
@@ -203,38 +203,39 @@ async def handle_email(update: Update,
     return 'HANDLE_LOCATION'
 
 
-# def handle_location(update, context):
-#     user_location = context.user_data['user_reply']
-#     moltin_token = context.bot_data['moltin_token']
-#
-#     try:
-#         coordinates = user_location.longitude, user_location.latitude
-#     except AttributeError:
-#         yandex_api_key = context.bot_data['yandex_api_key']
-#         coordinates = fetch_coordinates(user_location, yandex_api_key)
-#     if not coordinates:
-#         update.message.reply_text(
-#             text='Не могу распознать этот адрес, повторите попытку.'
-#         )
-#         return 'HANDLE_LOCATION'
-#
-#     available_restaurants = get_available_entries(moltin_token,
-#                                                   flow_slug='Pizzeria')
-#     nearest_restaurant = get_nearest_restaurant(coordinates,
-#                                                 available_restaurants)
-#     context.user_data.update(
-#         {
-#             'nearest_restaurant': nearest_restaurant,
-#             'delivery_coordinates': coordinates
-#         }
-#     )
-#     lon, lat = coordinates
-#     create_flow_entry(moltin_token, 'Customer-Address',
-#                       {'Lon': lon, 'Lat': lat})
-#     send_delivery_option(update, nearest_restaurant)
-#     return 'HANDLE_DELIVERY'
-#
-#
+async def handle_location(update: Update,
+                          context: CallbackContext.DEFAULT_TYPE) -> str:
+    user_location = context.user_data['user_reply']
+    moltin_token = context.bot_data['moltin_token']
+
+    try:
+        coordinates = user_location.longitude, user_location.latitude
+    except AttributeError:
+        yandex_api_key = context.bot_data['yandex_api_key']
+        coordinates = fetch_coordinates(user_location, yandex_api_key)
+    if not coordinates:
+        await update.message.reply_text(
+            text='Не могу распознать этот адрес, повторите попытку.'
+        )
+        return 'HANDLE_LOCATION'
+
+    available_restaurants = get_available_entries(moltin_token,
+                                                  flow_slug='Pizzeria')
+    nearest_restaurant = get_nearest_restaurant(coordinates,
+                                                available_restaurants)
+    context.user_data.update(
+        {
+            'nearest_restaurant': nearest_restaurant,
+            'delivery_coordinates': coordinates
+        }
+    )
+    lon, lat = coordinates
+    create_flow_entry(moltin_token, 'Customer-Address',
+                      {'Lon': lon, 'Lat': lat})
+    await send_delivery_option(update, nearest_restaurant)
+    return 'HANDLE_DELIVERY'
+
+
 # def handle_delivery(update, context):
 #     chat_id = context.user_data['chat_id']
 #     user_reply = context.user_data['user_reply']
@@ -383,7 +384,7 @@ async def handle_users_reply(update: Update,
         'HANDLE_DESCRIPTION': handle_description,
         'HANDLE_CART': handle_cart,
         'WAITING_EMAIL': handle_email,
-        # 'HANDLE_LOCATION': handle_location,
+        'HANDLE_LOCATION': handle_location,
         # 'HANDLE_DELIVERY': handle_delivery,
         # 'HANDLE_PAYMENT': handle_payment
     }
