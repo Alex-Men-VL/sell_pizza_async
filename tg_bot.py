@@ -22,6 +22,7 @@ from telegram.ext import (
     PicklePersistence,
     PreCheckoutQueryHandler
 )
+from validate_email import validate_email
 
 from logs_handler import TelegramLogsHandler
 from moltin_api import (
@@ -34,7 +35,7 @@ from moltin_api import (
     create_customer,
     delete_cart,
     get_available_entries,
-    create_flow_entry
+    create_flow_entry, get_customer_by_email
 )
 from redis_persistence import RedisPersistence
 from tg_lib import (
@@ -178,31 +179,30 @@ async def handle_cart(update: Update,
     return 'HANDLE_CART'
 
 
-# def handle_email(update, context):
-#     chat_id = context.user_data['chat_id']
-#     user_email = context.user_data['user_reply']
-#     moltin_token = context.bot_data['moltin_token']
-#
-#     email_pattern = r'(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)'
-#     if not re.fullmatch(email_pattern, user_email):
-#         message = 'Почта указана не верно. Отправьте почту еще раз.'
-#         update.message.reply_text(text=message)
-#         return 'WAITING_EMAIL'
-#
-#     if not context.bot_data.get('customers'):
-#         context.bot_data['customers'] = {}
-#
-#     if not context.bot_data['customers'].get(chat_id):
-#         customer = create_customer(moltin_token, user_email)
-#         context.bot_data['customers'][chat_id] = customer['data']['id']
-#     message = f'''
-#     Вы ввели эту почту: {user_email}
-#
-#     Пришлите нам ваш адрес текстом или геолокацию.'''
-#     update.message.reply_text(text=dedent(message))
-#     return 'HANDLE_LOCATION'
-#
-#
+async def handle_email(update: Update,
+                       context: CallbackContext.DEFAULT_TYPE) -> str:
+    chat_id = context.user_data['chat_id']
+    user_email = context.user_data['user_reply']
+    moltin_token = context.bot_data['moltin_token']
+
+    if not validate_email(user_email):
+        message = 'Почта указана не верно. Отправьте почту еще раз.'
+        await update.message.reply_text(text=message)
+        return 'WAITING_EMAIL'
+
+    context.user_data['email'] = user_email
+    customer = get_customer_by_email(moltin_token, user_email)
+    if not customer['data']:
+        customer = create_customer(moltin_token, user_email)
+
+    message = f'''
+    Вы ввели эту почту: {user_email}
+
+    Пришлите нам ваш адрес текстом или геолокацию.'''
+    await update.message.reply_text(text=dedent(message))
+    return 'HANDLE_LOCATION'
+
+
 # def handle_location(update, context):
 #     user_location = context.user_data['user_reply']
 #     moltin_token = context.bot_data['moltin_token']
@@ -382,7 +382,7 @@ async def handle_users_reply(update: Update,
         'HANDLE_MENU': handle_menu,
         'HANDLE_DESCRIPTION': handle_description,
         'HANDLE_CART': handle_cart,
-        # 'WAITING_EMAIL': handle_email,
+        'WAITING_EMAIL': handle_email,
         # 'HANDLE_LOCATION': handle_location,
         # 'HANDLE_DELIVERY': handle_delivery,
         # 'HANDLE_PAYMENT': handle_payment
