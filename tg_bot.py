@@ -145,8 +145,9 @@ async def handle_cart(update: Update,
                              page=current_page)
         return 'HANDLE_MENU'
     elif user_reply == 'pay':
-        if (context.bot_data.get('customers') and
-                context.bot_data['customers'].get(chat_id)):
+        customer = get_customer_by_email(moltin_token,
+                                         context.user_data.get('email'))
+        if customer['data']:
             message = 'Пришлите нам ваш адрес текстом или геолокацию.'
             await context.bot.send_message(text=message,
                                            chat_id=chat_id)
@@ -355,7 +356,6 @@ async def successful_payment_callback(
 
 async def handle_users_reply(update: Update,
                              context: CallbackContext.DEFAULT_TYPE) -> None:
-    print(context.user_data.get('state'))
     if message := update.message:
         user_reply = message.text if message.text else message.location
         chat_id = message.chat_id
