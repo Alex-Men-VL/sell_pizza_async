@@ -1,5 +1,4 @@
 import logging
-import re
 from datetime import datetime
 from textwrap import dedent
 from typing import Union
@@ -8,7 +7,6 @@ import requests
 from environs import Env
 from telegram import (
     Update,
-    Bot,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     BotCommand
@@ -20,12 +18,11 @@ from telegram.ext import (
     CallbackContext,
     CallbackQueryHandler,
     MessageHandler,
-    CommandHandler,
-    PicklePersistence,
     PreCheckoutQueryHandler
 )
 from validate_email import validate_email
 
+from coordinate_utils import fetch_coordinates, get_nearest_restaurant
 from moltin_api import (
     get_access_token,
     get_product,
@@ -33,22 +30,24 @@ from moltin_api import (
     add_cart_item,
     get_cart_items,
     remove_cart_item,
-    create_customer,
     delete_cart,
     get_available_entries,
-    create_flow_entry, get_customer_by_email, get_or_create_customer_by_email
+    create_flow_entry,
+    get_customer_by_email,
+    get_or_create_customer_by_email
 )
 from redis_persistence import RedisPersistence
 from tg_lib import (
     send_cart_description,
     send_product_description,
-    send_main_menu, parse_cart,
+    send_main_menu,
     send_delivery_option,
     send_order_reminder,
     send_payment_invoice,
-    generate_payment_payload, clean_user_data,
+    generate_payment_payload,
+    clean_user_data,
+    parse_cart
 )
-from coordinate_utils import fetch_coordinates, get_nearest_restaurant
 
 logger = logging.getLogger(__file__)
 
