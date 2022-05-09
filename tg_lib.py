@@ -36,7 +36,8 @@ def get_products_menu(products: list, page: int) -> InlineKeyboardMarkup:
     keyboard = []
     for button_name, button_id in parsed_products.items():
         keyboard.append(
-            [InlineKeyboardButton(text=button_name, callback_data=button_id)]
+            [InlineKeyboardButton(text=button_name,
+                                  callback_data=f'product_{button_id}')]
         )
     max_page_number = len(products)
     previous_page_number = page - 1
@@ -49,10 +50,10 @@ def get_products_menu(products: list, page: int) -> InlineKeyboardMarkup:
     keyboard.append(
         [
             InlineKeyboardButton(text='◀',
-                                 callback_data=previous_page_number),
+                                 callback_data=f'page_{previous_page_number}'),
             InlineKeyboardButton(text='Корзина', callback_data='cart'),
             InlineKeyboardButton(text='▶',
-                                 callback_data=next_page_number)
+                                 callback_data=f'page_{next_page_number}')
         ]
     )
     return InlineKeyboardMarkup(keyboard)
@@ -85,7 +86,7 @@ async def send_cart_description(context: CallbackContext.DEFAULT_TYPE,
             buttons.append([
                 InlineKeyboardButton(
                     text=f'Убрать из корзины {item["name"]}',
-                    callback_data=item['id']
+                    callback_data=f'remove_{item["id"]}'
                 )
             ])
         total_price = escape_markdown(cart_description["total_price"],
@@ -121,8 +122,10 @@ async def send_product_description(context: CallbackContext.DEFAULT_TYPE,
 
     reply_markup = InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton(text='Положить в корзину',
-                                  callback_data='add')],
+            [InlineKeyboardButton(
+                text='Положить в корзину',
+                callback_data=f'add_{product_description["id"]}'
+            )],
 
             [InlineKeyboardButton(text='В меню', callback_data='menu')]
         ]

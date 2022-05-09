@@ -74,31 +74,29 @@ async def handle_menu(update: Update,
         await send_cart_description(context, cart_description,
                                     chat_id, message_id)
         return 'HANDLE_CART'
-    elif user_reply.isdigit():
-        page = int(user_reply)
+    elif user_reply.startswith('page_'):
+        page = int(user_reply.replace('page_', ''))
         context.user_data['current_page'] = page
         await send_main_menu(context, chat_id, message_id, moltin_token,
                              page=page)
-        return 'HANDLE_MENU'
+    elif user_reply.startswith('product_'):
+        product_id = user_reply.replace('product_', '')
+        product = get_product(moltin_token, product_id)['data']
+        product_main_image = product['relationships'].get('main_image')
+        product_description = {
+            'id': product['id'],
+            'name': product['name'],
+            'description': product['description'],
+            'price': product['meta']['display_price']['with_tax']['formatted'],
+            'image_id': product_main_image['data']['id'] if product_main_image
+            else ''
+        }
 
-    context.user_data['product_id'] = user_reply
+        await send_product_description(context, product_description,
+                                       chat_id, message_id)
+        return 'HANDLE_DESCRIPTION'
 
-    product = get_product(moltin_token, user_reply)
-    product_main_image = product['data']['relationships'].get('main_image')
-
-    product_description = {
-        'name': product['data']['name'],
-        'description': product['data']['description'],
-        'price': product['data']['meta']['display_price']['with_tax'][
-            'formatted'
-        ],
-        'image_id': product_main_image['data']['id'] if product_main_image
-        else ''
-    }
-
-    await send_product_description(context, product_description,
-                                   chat_id, message_id)
-    return 'HANDLE_DESCRIPTION'
+    return 'HANDLE_MENU'
 
 
 async def handle_description(update: Update,
@@ -106,7 +104,6 @@ async def handle_description(update: Update,
     chat_id = context.user_data['chat_id']
     message_id = context.user_data['message_id']
     moltin_token = context.bot_data['moltin_token']
-    product_id = context.user_data['product_id']
     user_reply = context.user_data['user_reply']
 
     if user_reply == 'menu':
@@ -114,7 +111,8 @@ async def handle_description(update: Update,
         await send_main_menu(context, chat_id, message_id, moltin_token,
                              page=current_page)
         return 'HANDLE_MENU'
-    elif user_reply == 'add':
+    elif user_reply.startswith('add_'):
+        product_id = user_reply.replace('add_', '')
         user_cart = get_or_create_cart(moltin_token, chat_id)
         try:
             add_cart_item(moltin_token, user_cart['data']['id'],
@@ -160,22 +158,23 @@ async def handle_cart(update: Update,
         await context.bot.delete_message(chat_id=chat_id,
                                          message_id=message_id)
         return 'WAITING_EMAIL'
-
-    item_removed = remove_cart_item(moltin_token, chat_id, user_reply)
-    if item_removed:
-        await context.bot.answer_callback_query(
-            callback_query_id=update.callback_query.id,
-            text='Товар удален из корзины'
-        )
-        user_cart = get_cart_items(moltin_token, chat_id)
-        cart_description = parse_cart(user_cart)
-        await send_cart_description(context, cart_description,
-                                    chat_id, message_id)
-    else:
-        await context.bot.answer_callback_query(
-            callback_query_id=update.callback_query.id,
-            text='Товар не может быть удален из корзины'
-        )
+    elif user_reply.startswith('remove_'):
+        product_id = user_reply.replace('remove_', '')
+        item_removed = remove_cart_item(moltin_token, chat_id, product_id)
+        if item_removed:
+            await context.bot.answer_callback_query(
+                callback_query_id=update.callback_query.id,
+                text='Товар удален из корзины'
+            )
+            user_cart = get_cart_items(moltin_token, chat_id)
+            cart_description = parse_cart(user_cart)
+            await send_cart_description(context, cart_description,
+                                        chat_id, message_id)
+        else:
+            await context.bot.answer_callback_query(
+                callback_query_id=update.callback_query.id,
+                text='Товар не может быть удален из корзины'
+            )
     return 'HANDLE_CART'
 
 
