@@ -2,6 +2,7 @@ import logging
 import re
 from datetime import datetime
 from textwrap import dedent
+from typing import Union
 
 import requests
 from environs import Env
@@ -25,7 +26,6 @@ from telegram.ext import (
 )
 from validate_email import validate_email
 
-from logs_handler import TelegramLogsHandler
 from moltin_api import (
     get_access_token,
     get_product,
@@ -45,8 +45,8 @@ from tg_lib import (
     send_main_menu, parse_cart,
     send_delivery_option,
     send_order_reminder,
-    # send_payment_invoice,
-    # generate_payment_payload,
+    send_payment_invoice,
+    generate_payment_payload,
 )
 from coordinate_utils import fetch_coordinates, get_nearest_restaurant
 
@@ -311,43 +311,51 @@ async def handle_delivery(update: Update,
     return 'HANDLE_PAYMENT'
 
 
-# def handle_payment(update, context):
-#     chat_id = context.user_data['chat_id']
-#     message_id = context.user_data['message_id']
-#     user_reply = context.user_data['user_reply']
-#
-#     if user_reply != 'pay_now':
-#         return 'HANDLE_PAYMENT'
-#
-#     provider_token = context.bot_data['provider_token']
-#     cart_price = context.user_data['cart_price']
-#     payload = generate_payment_payload(update)
-#     send_payment_invoice(context, chat_id, provider_token, cart_price,
-#                          payload=payload)
-#     context.user_data['payload'] = payload
-#     context.bot.delete_message(chat_id=chat_id,
-#                                message_id=message_id)
-#
-#
-# def precheckout_callback(update, context):
-#     query = update.pre_checkout_query
-#     payload = context.user_data['payload']
-#     if query.invoice_payload != payload:
-#         query.answer(ok=False, error_message="Что-то пошло не так...")
-#     else:
-#         query.answer(ok=True)
-#
-#
-# def successful_payment_callback(update, context):
-#     chat_id = update.message.chat_id
-#     moltin_token = context.bot_data['moltin_token']
-#
-#     update.message.reply_text('Оплата прошла успешно')
-#     delete_cart(moltin_token, chat_id)
+async def handle_payment(
+        update: Update,
+        context: CallbackContext.DEFAULT_TYPE
+) -> Union[str, None]:
+    chat_id = context.user_data['chat_id']
+    message_id = context.user_data['message_id']
+    user_reply = context.user_data['user_reply']
+
+    if user_reply != 'pay_now':
+        return 'HANDLE_PAYMENT'
+
+    provider_token = context.bot_data['provider_token']
+    cart_price = context.user_data['cart_price']
+    payload = generate_payment_payload(update)
+    await send_payment_invoice(context, chat_id, provider_token, cart_price,
+                               payload=payload)
+    context.user_data['payload'] = payload
+    await context.bot.delete_message(chat_id=chat_id,
+                                     message_id=message_id)
+
+
+async def precheckout_callback(update: Update,
+                               context: CallbackContext.DEFAULT_TYPE) -> None:
+    query = update.pre_checkout_query
+    payload = context.user_data['payload']
+    if query.invoice_payload != payload:
+        await query.answer(ok=False, error_message="Что-то пошло не так...")
+    else:
+        await query.answer(ok=True)
+
+
+async def successful_payment_callback(
+        update: Update,
+        context: CallbackContext.DEFAULT_TYPE
+) -> None:
+    chat_id = update.message.chat_id
+    moltin_token = context.bot_data['moltin_token']
+
+    await update.message.reply_text('Оплата прошла успешно')
+    delete_cart(moltin_token, chat_id)
 
 
 async def handle_users_reply(update: Update,
                              context: CallbackContext.DEFAULT_TYPE) -> None:
+    print(context.user_data.get('state'))
     if message := update.message:
         user_reply = message.text if message.text else message.location
         chat_id = message.chat_id
@@ -392,7 +400,7 @@ async def handle_users_reply(update: Update,
         'WAITING_EMAIL': handle_email,
         'HANDLE_LOCATION': handle_location,
         'HANDLE_DELIVERY': handle_delivery,
-        # 'HANDLE_PAYMENT': handle_payment
+        'HANDLE_PAYMENT': handle_payment
     }
     state_handler = states_functions[user_state]
 
@@ -440,12 +448,12 @@ def main() -> None:
     application.add_handler(
         MessageHandler(filters.TEXT | filters.LOCATION, handle_users_reply)
     )
-    # application.add_handler(
-    #     PreCheckoutQueryHandler(precheckout_callback)
-    # )
-    # application.add_handler(
-    #     MessageHandler(filters.SUCCESSFUL_PAYMENT,
-    #                    successful_payment_callback))
+    application.add_handler(
+        PreCheckoutQueryHandler(precheckout_callback)
+    )
+    application.add_handler(
+        MessageHandler(filters.SUCCESSFUL_PAYMENT,
+                       successful_payment_callback))
 
     # await application.bot.delete_my_commands()
     # await application.bot.set_my_commands(

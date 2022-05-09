@@ -1,9 +1,10 @@
 from textwrap import dedent
+from typing import Union
 
 from more_itertools import chunked
 from telegram import (
     InlineKeyboardButton,
-    InlineKeyboardMarkup, Update
+    InlineKeyboardMarkup, Update, LabeledPrice
 )
 from telegram.constants import ParseMode
 from telegram.ext import CallbackContext
@@ -201,25 +202,29 @@ async def send_order_reminder(context: CallbackContext.DEFAULT_TYPE) -> None:
                                    text=dedent(message))
 
 
-# def generate_payment_payload(update):
-#     query = update.callback_query.message
-#     first_name = query.chat.first_name
-#     last_name = query.chat.last_name
-#     message_id = query.message_id
-#     return f'{first_name}-{last_name}-{message_id}'
-#
-#
-# def send_payment_invoice(context, chat_id, provider_token, price,
-#                          currency='RUB', payload='Custom-Payload',
-#                          description=None):
-#     title = 'Оплата пиццы'
-#     description = description if description else \
-#         'Здесь должно быть описание заказа'
-#     prices = [LabeledPrice('Pizza', int(float(price)) * 100)]
-#
-#     context.bot.send_invoice(
-#         chat_id, title, description, payload, provider_token, currency, prices
-#     )
+def generate_payment_payload(update: Update) -> str:
+    query = update.callback_query.message
+    first_name = query.chat.first_name
+    last_name = query.chat.last_name
+    message_id = query.message_id
+    return f'{first_name}-{last_name}-{message_id}'
+
+
+async def send_payment_invoice(context: CallbackContext.DEFAULT_TYPE,
+                               chat_id: str, provider_token: str,
+                               price: Union[str, int, float],
+                               currency: str = 'RUB',
+                               payload: str = 'Custom-Payload',
+                               description: str = None) -> None:
+    title = 'Оплата пиццы'
+    description = description or 'Здесь должно быть описание заказа'
+    prices = [LabeledPrice('Pizza', int(float(price)) * 100)]
+
+    await context.bot.send_invoice(
+        chat_id, title, description, payload, provider_token, currency, prices
+    )
+
+
 def parse_cart(cart: dict) -> dict:
     total_price = cart['meta']['display_price']['with_tax']['formatted']
     cart_description = []
