@@ -1,5 +1,5 @@
 from textwrap import dedent
-from typing import Union
+from typing import Union, Dict, Tuple
 
 from more_itertools import chunked
 from telegram import (
@@ -251,3 +251,9 @@ def parse_cart(cart: dict) -> dict:
         'total_price': total_price,
         'cart_description': cart_description
     }
+
+
+def clean_user_data(user_data: Dict, keys: Tuple[str, ...]) -> None:
+    for key in keys:
+        if key in user_data:
+            del user_data[key]

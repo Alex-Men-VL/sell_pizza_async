@@ -46,7 +46,7 @@ from tg_lib import (
     send_delivery_option,
     send_order_reminder,
     send_payment_invoice,
-    generate_payment_payload,
+    generate_payment_payload, clean_user_data,
 )
 from coordinate_utils import fetch_coordinates, get_nearest_restaurant
 
@@ -371,6 +371,10 @@ async def successful_payment_callback(
 
     await update.message.reply_text('Оплата прошла успешно')
     delete_cart(moltin_token, chat_id)
+
+    unnecessary_data = ('nearest_restaurant', 'delivery_coordinates',
+                        'cart_price', 'payload')
+    clean_user_data(context.user_data, unnecessary_data)
 
 
 async def handle_users_reply(update: Update,
