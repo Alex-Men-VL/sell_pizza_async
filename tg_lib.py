@@ -1,7 +1,6 @@
 from textwrap import dedent
 from typing import Union, Dict, Tuple, Any
 
-from more_itertools import chunked
 from telegram import (
     InlineKeyboardButton,
     InlineKeyboardMarkup, Update, LabeledPrice
@@ -11,56 +10,18 @@ from telegram.ext import CallbackContext
 from telegram.helpers import escape_markdown
 
 from moltin_api import (
-    get_product_main_image_url,
-    get_products, get_category
+    get_product_main_image_url
 )
 
 
 async def send_main_menu(context: CallbackContext.DEFAULT_TYPE,
-                         chat_id: str, message_id: str, moltin_token: str,
-                         page: int, quantity_per_page: int = 8) -> None:
-    products = await get_products(moltin_token)
-    products_per_page = list(chunked(products['data'], quantity_per_page))
-
-    reply_markup = get_products_menu(products_per_page, page)
+                         chat_id: str, message_id: str, page: int) -> None:
+    menu = context.bot_data['menu'].get(page)
     await context.bot.send_message(text='Пожалуйста, выберите товар:',
                                    chat_id=chat_id,
-                                   reply_markup=reply_markup)
+                                   reply_markup=menu)
     await context.bot.delete_message(chat_id=chat_id,
                                      message_id=message_id)
-
-
-def get_products_menu(products: list, page: int) -> InlineKeyboardMarkup:
-    parsed_products = {
-        product['name']: product['id'] for product in products[page - 1]
-    }
-    keyboard = []
-    for button_name, button_id in parsed_products.items():
-        keyboard.append(
-            [InlineKeyboardButton(text=button_name,
-                                  callback_data=f'product_{button_id}')]
-        )
-    max_page_number = len(products)
-    previous_page_number = page - 1
-    next_page_number = page + 1
-    if page == 1:
-        previous_page_number = max_page_number
-    elif page == max_page_number:
-        next_page_number = 1
-
-    keyboard.append(
-        [InlineKeyboardButton(text='Акции🔥', callback_data='promo')]
-    )
-    keyboard.append(
-        [
-            InlineKeyboardButton(text='◀',
-                                 callback_data=f'page_{previous_page_number}'),
-            InlineKeyboardButton(text='Корзина🛒', callback_data='cart'),
-            InlineKeyboardButton(text='▶',
-                                 callback_data=f'page_{next_page_number}')
-        ]
-    )
-    return InlineKeyboardMarkup(keyboard)
 
 
 async def send_cart_description(context: CallbackContext.DEFAULT_TYPE,

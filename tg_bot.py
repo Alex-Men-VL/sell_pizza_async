@@ -62,8 +62,7 @@ async def handle_start(update: Update,
 
     chat_id = context.user_data['chat_id']
     message_id = context.user_data['message_id']
-    moltin_token = context.bot_data['moltin_token']
-    await send_main_menu(context, chat_id, message_id, moltin_token, page=1)
+    await send_main_menu(context, chat_id, message_id, page=1)
     context.user_data['current_page'] = 1
     return 'HANDLE_MENU'
 
@@ -72,11 +71,9 @@ async def handle_menu_request(update: Update,
                               context: CallbackContext.DEFAULT_TYPE) -> str:
     chat_id = context.user_data['chat_id']
     message_id = context.user_data['message_id']
-    moltin_token = context.bot_data['moltin_token']
     current_page = context.user_data.get('current_page', 1)
 
-    await send_main_menu(context, chat_id, message_id, moltin_token,
-                         page=current_page)
+    await send_main_menu(context, chat_id, message_id, page=current_page)
     context.user_data['current_page'] = current_page
     return 'HANDLE_MENU'
 
@@ -97,8 +94,7 @@ async def handle_menu(update: Update,
     elif user_reply.startswith('page_'):
         page = int(user_reply.replace('page_', ''))
         context.user_data['current_page'] = page
-        await send_main_menu(context, chat_id, message_id, moltin_token,
-                             page=page)
+        await send_main_menu(context, chat_id, message_id, page=page)
     elif user_reply.startswith('product_'):
         product_id = user_reply.replace('product_', '')
         product = await get_product(moltin_token, product_id)
@@ -139,8 +135,7 @@ async def handle_description(update: Update,
 
     if user_reply == 'menu':
         current_page = context.user_data['current_page']
-        await send_main_menu(context, chat_id, message_id, moltin_token,
-                             page=current_page)
+        await send_main_menu(context, chat_id, message_id, page=current_page)
         return 'HANDLE_MENU'
     elif user_reply.startswith('add_'):
         product_id = user_reply.replace('add_', '')
@@ -170,8 +165,7 @@ async def handle_cart(update: Update,
 
     if user_reply == 'menu':
         current_page = context.user_data['current_page']
-        await send_main_menu(context, chat_id, message_id, moltin_token,
-                             page=current_page)
+        await send_main_menu(context, chat_id, message_id, page=current_page)
         return 'HANDLE_MENU'
     elif user_reply == 'pay':
         customer = await get_customer_by_email(moltin_token,
@@ -464,7 +458,7 @@ def main() -> None:
             'client_id': client_id,
             'client_secret': client_secret,
             'yandex_api_key': yandex_api_key,
-            'provider_token': provider_token
+            'provider_token': provider_token,
         }
     }
     persistence = RedisPersistence(url=redis_uri, redis_key='tg',
