@@ -20,10 +20,10 @@ def get_products_menu(products: list, page: int) -> InlineKeyboardMarkup:
         product['name']: product['id'] for product in products[page - 1]
     }
     keyboard = []
-    for button_name, button_id in parsed_products.items():
+    for product_name, product_id in parsed_products.items():
         keyboard.append(
-            [InlineKeyboardButton(text=button_name,
-                                  callback_data=f'product_{button_id}')]
+            [InlineKeyboardButton(text=f'{product_name} 🍕',
+                                  callback_data=f'product_{product_id}')]
         )
     max_page_number = len(products)
     previous_page_number = page - 1
@@ -34,7 +34,7 @@ def get_products_menu(products: list, page: int) -> InlineKeyboardMarkup:
         next_page_number = 1
 
     keyboard.append(
-        [InlineKeyboardButton(text='Акции🔥', callback_data='promo')]
+        [InlineKeyboardButton(text='Акции 🔥', callback_data='promo')]
     )
     keyboard.append(
         [
@@ -65,7 +65,7 @@ async def cache_menu(moltin_token: str, redis_url: str,
     redis_connection = aioredis.from_url(redis_url)
     menu = await create_menu(moltin_token, products_per_page)
 
-    db_contents_bytes = await redis_connection.get(db_keys['main_key'])
+    db_contents_bytes = await redis_connection.get(db_keys['db_main_key'])
     if db_contents_bytes:
         db_contents = pickle.loads(db_contents_bytes)
     else:
@@ -80,7 +80,7 @@ async def cache_menu(moltin_token: str, redis_url: str,
         'menu': menu
     })
     db_contents_bytes = pickle.dumps(db_contents)
-    menu_updated = await redis_connection.set(db_keys['main_key'],
+    menu_updated = await redis_connection.set(db_keys['db_main_key'],
                                               db_contents_bytes)
     if menu_updated:
         logger.info('Меню успешно обновлено')

@@ -32,7 +32,7 @@ async def send_cart_description(context: CallbackContext.DEFAULT_TYPE,
     if not cart_items:
         message = 'К сожалению, ваша корзина пуста :c'
         reply_markup = InlineKeyboardMarkup(
-            [[InlineKeyboardButton(text='Назад', callback_data='menu')]]
+            [[InlineKeyboardButton(text='В меню', callback_data='menu')]]
         )
     else:
         message = ''
