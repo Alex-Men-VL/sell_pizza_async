@@ -335,12 +335,13 @@ async def get_entries(access_token: str, flow_slug: str,
             return await response.json()
 
 
-async def get_available_entries(moltin_token, flow_slug) -> List:
+async def get_available_entries(access_token: str,
+                                flow_slug: str) -> List[Dict[str, Any]]:
     available_entries = []
-    entries = await get_entries(moltin_token, flow_slug=flow_slug)
+    entries = await get_entries(access_token, flow_slug=flow_slug)
     available_entries += entries['data']
     while next_page_url := entries['links']['next']:
-        entries = await get_entries(moltin_token, flow_slug=flow_slug,
+        entries = await get_entries(access_token, flow_slug=flow_slug,
                                     next_page_url=next_page_url)
         available_entries += entries['data']
     return available_entries
