@@ -83,7 +83,7 @@ class RedisPersistence(BasePersistence[UD, CD, BD]):
             )
             self.chat_data.update(data.get('chat_data', {}))
 
-            self.bot_data = data.get('_bot_data', {})
+            self.bot_data = db_data.get('_bot_data', {})
             self.bot_data.update(data.get('bot_data', {}))
 
             self.conversations = data.get('_conversations', {})
