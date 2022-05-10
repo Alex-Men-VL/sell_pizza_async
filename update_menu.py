@@ -60,26 +60,28 @@ async def create_menu(moltin_token: str,
 
 
 async def cache_menu(moltin_token: str, redis_url: str,
-                     main_key: str, bot_data_key: str,
+                     db_keys: Dict[str, str],
                      products_per_page: int = 8) -> None:
     redis_connection = aioredis.from_url(redis_url)
     menu = await create_menu(moltin_token, products_per_page)
 
-    db_contents_bytes = await redis_connection.get(main_key)
+    db_contents_bytes = await redis_connection.get(db_keys['main_key'])
     if db_contents_bytes:
         db_contents = pickle.loads(db_contents_bytes)
     else:
-        db_contents = {'_bot_data': {},
-                       '_callback_data': ([], {}),
-                       '_chat_data': defaultdict(dict, {}),
-                       '_conversations': {},
-                       '_user_data': defaultdict(dict, {})
-                       }
-    db_contents[bot_data_key].update({
+        db_contents = {
+            db_keys['bot_data_key']: {},
+            db_keys['callback_data_key']: ([], {}),
+            db_keys['chat_data_key']: defaultdict(dict, {}),
+            db_keys['conversations_key']: {},
+            db_keys['user_data_key']: defaultdict(dict, {})
+        }
+    db_contents[db_keys['bot_data_key']].update({
         'menu': menu
     })
     db_contents_bytes = pickle.dumps(db_contents)
-    menu_updated = await redis_connection.set(main_key, db_contents_bytes)
+    menu_updated = await redis_connection.set(db_keys['main_key'],
+                                              db_contents_bytes)
     if menu_updated:
         logger.info('Меню успешно обновлено')
 
@@ -96,8 +98,15 @@ async def main():
     redis_uri = env.str('REDIS_URL')
     client_id = env.str('CLIENT_ID')
     client_secret = env.str('CLIENT_SECRET')
-    db_main_key = env.str('DB_MAIN_KEY', 'tg')
-    bot_data_key = env.str('BOT_DATA_KEY', '_bot_data')
+
+    db_keys = {
+        'db_main_key': env.str('DB_MAIN_KEY', 'tg'),
+        'bot_data_key': env.str('DB_BOT_DATA_KEY', '_bot_data'),
+        'user_data_key': env.str('DB_USER_DATA_KEY', '_user_data'),
+        'chat_data_key': env.str('_chat_data', '_chat_data'),
+        'callback_data_key': env.str('DB_CALLBACK_DATA_KEY', '_callback_data'),
+        'conversations_key': env.str('DB_CONVERSATIONS_KEY', '_conversations'),
+    }
 
     moltin_access_token = await get_access_token(client_id, client_secret)
     moltin_token = moltin_access_token['access_token']
@@ -106,10 +115,9 @@ async def main():
     if not redis_uri.startswith(prefix):
         redis_uri = f'{prefix}{redis_uri}'
 
-    await cache_menu(moltin_token, redis_uri, db_main_key, bot_data_key)
+    await cache_menu(moltin_token, redis_uri, db_keys)
 
-    aioschedule.every(10).seconds.do(job, moltin_token, redis_uri,
-                                     db_main_key, bot_data_key)
+    aioschedule.every(10).seconds.do(job, moltin_token, redis_uri, db_keys)
 
     while True:
         await aioschedule.run_pending()

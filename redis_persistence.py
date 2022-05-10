@@ -22,7 +22,12 @@ class RedisPersistence(BasePersistence[UD, CD, BD]):
     def __init__(
             self,
             url: str,
-            redis_key: str,
+            main_key: str,
+            bot_data_key: str = '_bot_data',
+            user_data_key: str = '_user_data',
+            callback_data_key: str = '_callback_data',
+            chat_data_key: str = '_chat_data',
+            conversations_key: str = '_conversations',
             initial_data: Dict[str, Dict] = None,
             store_data: PersistenceInput = None,
             on_flush: bool = False,
@@ -32,7 +37,12 @@ class RedisPersistence(BasePersistence[UD, CD, BD]):
         super().__init__(store_data=store_data,
                          update_interval=update_interval)
         self.url = url
-        self.redis_key = redis_key
+        self.main_key = main_key
+        self.bot_data_key = bot_data_key
+        self.user_data_key = user_data_key
+        self.callback_data_key = callback_data_key
+        self.chat_data_key = chat_data_key
+        self.conversations_key = conversations_key
         self._initial_data = initial_data
         self.on_flush = on_flush
         self.user_data: Optional[Dict[int, UD]] = None
@@ -60,33 +70,34 @@ class RedisPersistence(BasePersistence[UD, CD, BD]):
 
     async def _perform_initialization(self) -> None:
         valid_keys = ('bot_data', 'user_data', 'chat_data')
-        data = {}
+        initial_data = {}
         for key, value in self._initial_data.items():
             if key not in valid_keys or not isinstance(value, dict):
                 continue
-            data[key] = value
-        data_bytes = await self._redis_pool_get(self.redis_key)
+            initial_data[key] = value
+
+        data_bytes = await self._redis_pool_get(self.main_key)
         if data_bytes is None:
             self.conversations = {}
-            self.user_data = data.get('user_data', defaultdict(dict))
-            self.chat_data = data.get('chat_data', defaultdict(dict))
-            self.bot_data = data.get('bot_data', {})
+            self.user_data = initial_data.get('user_data', defaultdict(dict))
+            self.chat_data = initial_data.get('chat_data', defaultdict(dict))
+            self.bot_data = initial_data.get('bot_data', {})
         else:
             db_data = pickle.loads(data_bytes)
             self.user_data = defaultdict(
-                dict, db_data.get('_user_data', {})
+                dict, db_data.get(self.user_data_key, {})
             )
-            self.user_data.update(data.get('user_data', {}))
+            self.user_data.update(initial_data.get('user_data', {}))
 
             self.chat_data = defaultdict(
-                dict, db_data.get('_chat_data', {})
+                dict, db_data.get(self.chat_data_key, {})
             )
-            self.chat_data.update(data.get('chat_data', {}))
+            self.chat_data.update(initial_data.get('chat_data', {}))
 
-            self.bot_data = db_data.get('_bot_data', {})
-            self.bot_data.update(data.get('bot_data', {}))
+            self.bot_data = db_data.get(self.bot_data_key, {})
+            self.bot_data.update(initial_data.get('bot_data', {}))
 
-            self.conversations = data.get('_conversations', {})
+            self.conversations = initial_data.get(self.conversations_key, {})
 
         await self._dump_redis()
         logger.info('БД успешно проинициализирована')
@@ -96,7 +107,7 @@ class RedisPersistence(BasePersistence[UD, CD, BD]):
             await self._perform_initialization()
             self._initial_data = {}
         try:
-            data_bytes = await self._redis_pool_get(self.redis_key)
+            data_bytes = await self._redis_pool_get(self.main_key)
             if data_bytes is None:
                 self.conversations = {}
                 self.user_data = defaultdict(dict)
@@ -104,10 +115,12 @@ class RedisPersistence(BasePersistence[UD, CD, BD]):
                 self.bot_data = {}
                 return
             data = pickle.loads(data_bytes)
-            self.user_data = defaultdict(dict, data.get('_user_data', {}))
-            self.chat_data = defaultdict(dict, data.get('_chat_data', {}))
-            self.bot_data = data.get('_bot_data', {})
-            self.conversations = data.get('_conversations', {})
+            self.user_data = defaultdict(dict,
+                                         data.get(self.user_data_key, {}))
+            self.chat_data = defaultdict(dict,
+                                         data.get(self.chat_data_key, {}))
+            self.bot_data = data.get(self.bot_data_key, {})
+            self.conversations = data.get(self.conversations_key, {})
         except Exception as exc:
             raise TypeError(
                 f"Something went wrong unpickling from Redis"
@@ -115,14 +128,14 @@ class RedisPersistence(BasePersistence[UD, CD, BD]):
 
     async def _dump_redis(self) -> None:
         data = {
-            '_bot_data': self.bot_data,
-            '_user_data': self.user_data,
-            '_chat_data': self.chat_data,
-            '_callback_data': self.callback_data,
-            '_conversations': self.conversations
+            self.bot_data_key: self.bot_data,
+            self.user_data_key: self.user_data,
+            self.chat_data_key: self.chat_data,
+            self.callback_data_key: self.callback_data,
+            self.conversations_key: self.conversations
         }
         data_bytes = pickle.dumps(data)
-        await self._redis_pool_set(self.redis_key, data_bytes)
+        await self._redis_pool_set(self.main_key, data_bytes)
 
     async def get_bot_data(self) -> BD:
         """Returns the bot_data from the Redis if it exists or

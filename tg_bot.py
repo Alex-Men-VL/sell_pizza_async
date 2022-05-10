@@ -461,7 +461,7 @@ def main() -> None:
             'provider_token': provider_token,
         }
     }
-    persistence = RedisPersistence(url=redis_uri, redis_key='tg',
+    persistence = RedisPersistence(url=redis_uri, main_key='tg',
                                    initial_data=initial_db_data)
     application = Application.builder().token(bot_token).persistence(
         persistence
