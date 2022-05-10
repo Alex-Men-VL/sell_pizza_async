@@ -49,10 +49,13 @@ def get_products_menu(products: list, page: int) -> InlineKeyboardMarkup:
         next_page_number = 1
 
     keyboard.append(
+        [InlineKeyboardButton(text='Акции🔥', callback_data='promo')]
+    )
+    keyboard.append(
         [
             InlineKeyboardButton(text='◀',
                                  callback_data=f'page_{previous_page_number}'),
-            InlineKeyboardButton(text='Корзина', callback_data='cart'),
+            InlineKeyboardButton(text='Корзина🛒', callback_data='cart'),
             InlineKeyboardButton(text='▶',
                                  callback_data=f'page_{next_page_number}')
         ]
