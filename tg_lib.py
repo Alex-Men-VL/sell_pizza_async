@@ -12,7 +12,7 @@ from telegram.helpers import escape_markdown
 
 from moltin_api import (
     get_product_main_image_url,
-    get_products
+    get_products, get_category
 )
 
 
@@ -116,12 +116,28 @@ async def send_cart_description(context: CallbackContext.DEFAULT_TYPE,
 async def send_product_description(context: CallbackContext.DEFAULT_TYPE,
                                    product_description: Dict[str, str],
                                    chat_id: str, message_id: str) -> None:
+    if len(categories := product_description['categories']) > 1:
+        categories = [category.replace("'", "") for category in categories]
+        categories_description = f'*Категории:* {", ".join(categories)}'
+    elif len(categories) == 0:
+        categories_description = 'Товара нет ни в одной категории'
+    else:
+        category = categories[0].replace("'", "")
+        categories_description = f'*Категория:* {category}'
+
+    product_name = escape_markdown(product_description['name'], version=2)
+    product_price = escape_markdown(product_description['price'], version=2)
+    description = escape_markdown(product_description['description'],
+                                  version=2)
+
     message = f'''\
-    {product_description['name']}
+    *{product_name}*
 
-    Стоимость: {product_description['price']} руб.
+    *Стоимость:* {product_price} руб
+    
+    {categories_description}
 
-    {product_description['description']}
+    _{description}_
     '''
 
     reply_markup = InlineKeyboardMarkup(
@@ -145,14 +161,16 @@ async def send_product_description(context: CallbackContext.DEFAULT_TYPE,
         await context.bot.send_photo(chat_id=chat_id,
                                      photo=img_url,
                                      caption=dedent(message),
-                                     reply_markup=reply_markup)
+                                     reply_markup=reply_markup,
+                                     parse_mode=ParseMode.MARKDOWN_V2)
         await context.bot.delete_message(chat_id=chat_id,
                                          message_id=message_id)
     else:
         await context.bot.edit_message_text(text=dedent(message),
                                             chat_id=chat_id,
                                             message_id=message_id,
-                                            reply_markup=reply_markup)
+                                            reply_markup=reply_markup,
+                                            parse_mode=ParseMode.MARKDOWN_V2)
 
 
 async def send_delivery_option(update: Update,

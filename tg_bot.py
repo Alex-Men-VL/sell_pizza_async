@@ -34,7 +34,7 @@ from moltin_api import (
     get_available_entries,
     create_flow_entry,
     get_customer_by_email,
-    get_or_create_customer_by_email
+    get_or_create_customer_by_email, get_category
 )
 from redis_persistence import RedisPersistence
 from tg_lib import (
@@ -104,6 +104,14 @@ async def handle_menu(update: Update,
         product = await get_product(moltin_token, product_id)
         product = product['data']
 
+        categories_names = []
+        if categories := product['relationships'].get('categories'):
+            categories_id = [category['id'] for category in categories['data']]
+            categories = [await get_category(moltin_token, category_id) for
+                          category_id in categories_id]
+            categories_names = [category['data']['name'] for category in
+                                categories]
+
         product_main_image = product['relationships'].get('main_image')
         product_description = {
             'id': product['id'],
@@ -111,7 +119,8 @@ async def handle_menu(update: Update,
             'description': product['description'],
             'price': product['meta']['display_price']['with_tax']['formatted'],
             'image_id': product_main_image['data']['id'] if product_main_image
-            else ''
+            else '',
+            'categories': categories_names
         }
 
         await send_product_description(context, product_description,

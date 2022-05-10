@@ -345,3 +345,26 @@ async def get_available_entries(access_token: str,
                                     next_page_url=next_page_url)
         available_entries += entries['data']
     return available_entries
+
+
+async def get_categories(access_token: str) -> Dict[str, Any]:
+    url = 'https://api.moltin.com/v2/categories'
+    headers = {
+        'Authorization': f'Bearer {access_token}'
+    }
+    async with aiohttp.ClientSession(raise_for_status=True,
+                                     headers=headers) as session:
+        async with session.get(url) as response:
+            return await response.json()
+
+
+async def get_category(access_token: str,
+                       category_id: Union[str, int]) -> Dict[str, Any]:
+    url = f'https://api.moltin.com/v2/categories/{category_id}'
+    headers = {
+        'Authorization': f'Bearer {access_token}'
+    }
+    async with aiohttp.ClientSession(raise_for_status=True,
+                                     headers=headers) as session:
+        async with session.get(url) as response:
+            return await response.json()
