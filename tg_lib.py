@@ -28,7 +28,9 @@ async def send_main_menu(context: CallbackContext.DEFAULT_TYPE,
 
 async def send_cart_description(context: CallbackContext.DEFAULT_TYPE,
                                 cart_description: Dict[str, Any],
-                                chat_id: str, message_id: str,
+                                chat_id: Union[int, str],
+                                message_id: Union[int, str],
+                                pay_option: str = None,
                                 with_keyboard: bool = True) -> None:
     cart_items = cart_description['cart_description']
     if not cart_items:
@@ -58,7 +60,10 @@ async def send_cart_description(context: CallbackContext.DEFAULT_TYPE,
             ])
         total_price = escape_markdown(cart_description["total_price"],
                                       version=2)
-        message += f'*К оплате: {total_price}*'
+        if not pay_option or pay_option == 'in_cash':
+            message += f'*К оплате: {total_price}*'
+        else:
+            message += '*Оплата по карте*'
         buttons.append(
             [InlineKeyboardButton(text='Оплатить', callback_data='pay')]
         )
@@ -170,6 +175,55 @@ async def send_promo_products(context: CallbackContext.DEFAULT_TYPE,
                                    reply_markup=menu)
     await context.bot.delete_message(chat_id=chat_id,
                                      message_id=message_id)
+
+
+async def send_payment_option(context: CallbackContext.DEFAULT_TYPE,
+                              chat_id: str, message_id: str, ) -> None:
+    message = 'Выберите способ оплаты:'
+    buttons = [
+        [InlineKeyboardButton(text='Наличными', callback_data='in_cash')],
+        [InlineKeyboardButton(text='Картой', callback_data='by_card')]
+    ]
+    await context.bot.send_message(text=message,
+                                   chat_id=chat_id,
+                                   reply_markup=InlineKeyboardMarkup(buttons))
+    await context.bot.delete_message(chat_id=chat_id,
+                                     message_id=message_id)
+
+
+async def send_order_to_courier(context: CallbackContext.DEFAULT_TYPE,
+                                chat_id: int, message_id: int,
+                                pay_option: str) -> None:
+    lon, lat = context.user_data['delivery_coordinates']
+    nearest_restaurant = context.user_data['nearest_restaurant']
+    cart_description = context.user_data['cart_description']
+    courier_id = nearest_restaurant['courier_id']
+
+    message = f'''
+        Новый заказ!
+
+        Из ресторана по адресу: {nearest_restaurant['address']}
+
+        Содержимое заказа:'''
+    await context.bot.send_message(chat_id=courier_id,
+                                   text=dedent(message))
+    await send_cart_description(context, cart_description,
+                                chat_id, message_id, pay_option,
+                                with_keyboard=False)
+    await context.bot.send_message(
+        chat_id=courier_id,
+        text='Адрес заказа:'
+    )
+    await context.bot.send_location(chat_id=courier_id,
+                                    latitude=lat,
+                                    longitude=lon)
+
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text='Спасибо за заказ! Ожидайте доставки'
+    )
+    context.job_queue.run_once(send_order_reminder, when=3600,
+                               context=chat_id)
 
 
 async def send_delivery_option(update: Update,

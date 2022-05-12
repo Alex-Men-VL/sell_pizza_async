@@ -42,11 +42,10 @@ from tg_lib import (
     send_product_description,
     send_main_menu,
     send_delivery_option,
-    send_order_reminder,
     send_payment_invoice,
     generate_payment_payload,
     clean_user_data,
-    parse_cart, send_promo_products
+    parse_cart, send_promo_products, send_payment_option, send_order_to_courier
 )
 
 logger = logging.getLogger(__file__)
@@ -178,12 +177,8 @@ async def handle_cart(update: Update,
         customer = await get_customer_by_email(moltin_token,
                                                context.user_data.get('email'))
         if customer['data']:
-            message = 'Пришлите нам ваш адрес текстом или геолокацию.'
-            await context.bot.send_message(text=message,
-                                           chat_id=chat_id)
-            await context.bot.delete_message(chat_id=chat_id,
-                                             message_id=message_id)
-            return 'HANDLE_LOCATION'
+            await send_payment_option(context, chat_id, message_id)
+            return 'HANDLE_PAYMENT_OPTION'
 
         message = 'Пожалуйста, напишите свою почту для связи с вами'
         await context.bot.send_message(text=message,
@@ -233,6 +228,25 @@ async def handle_email(update: Update,
     return 'HANDLE_LOCATION'
 
 
+async def handle_payment_option(update: Update,
+                                context: CallbackContext.DEFAULT_TYPE) -> str:
+    chat_id = context.user_data['chat_id']
+    message_id = context.user_data['message_id']
+    user_reply = context.user_data['user_reply']
+
+    if user_reply == 'in_cash' or user_reply == 'by_card':
+        context.user_data['pay_option'] = user_reply
+        message = 'Пришлите нам ваш адрес текстом или геолокацию.'
+        await context.bot.send_message(text=message,
+                                       chat_id=chat_id)
+        await context.bot.delete_message(chat_id=chat_id,
+                                         message_id=message_id)
+
+        return 'HANDLE_LOCATION'
+
+    return 'HANDLE_PAYMENT_OPTION'
+
+
 async def handle_location(update: Update,
                           context: CallbackContext.DEFAULT_TYPE) -> str:
     user_location = context.user_data['user_reply']
@@ -275,7 +289,7 @@ async def handle_delivery(update: Update,
 
     user_cart = await get_cart_items(moltin_token, chat_id)
     cart_description = parse_cart(user_cart)
-    context.user_data['cart_price'] = cart_description['total_price']
+    context.user_data['cart_description'] = cart_description
     nearest_restaurant = context.user_data['nearest_restaurant']
 
     if user_reply == 'pickup':
@@ -297,47 +311,40 @@ async def handle_delivery(update: Update,
                                         latitude=nearest_restaurant['lat'],
                                         longitude=nearest_restaurant['lon'])
     elif user_reply == 'delivery':
-        lon, lat = context.user_data['delivery_coordinates']
-        courier_id = nearest_restaurant['courier_id']
-        message = f'''
-            Новый заказ!
-
-            Из ресторана по адресу: {nearest_restaurant['address']}
-
-            Содержимое заказа:'''
-        await context.bot.send_message(chat_id=courier_id,
-                                       text=dedent(message))
-        await send_cart_description(context, cart_description,
-                                    chat_id, message_id,
-                                    with_keyboard=False)
-        await context.bot.send_message(
-            chat_id=courier_id,
-            text='Адрес заказа:'
-        )
-        await context.bot.send_location(chat_id=courier_id,
-                                        latitude=lat,
-                                        longitude=lon)
-
-        await context.bot.send_message(
-            chat_id=chat_id,
-            text='Спасибо за заказ! Ожидайте доставки'
-        )
-        context.job_queue.run_once(send_order_reminder, when=3600,
-                                   context=chat_id)
+        pass
     else:
         return 'HANDLE_DELIVERY'
 
-    button = [
-        [InlineKeyboardButton(text='Оплатить', callback_data='pay_now')]
-    ]
-    await context.bot.send_message(
-        chat_id=chat_id,
-        text='Для оплаты нажмите кнопку *Оплатить*',
-        reply_markup=InlineKeyboardMarkup(button),
-        parse_mode=ParseMode.MARKDOWN_V2
-    )
+    if (pay_option := context.user_data['pay_option']) == 'by_card':
+        button = [
+            [InlineKeyboardButton(text='Оплатить', callback_data='pay_now')]
+        ]
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text='Для оплаты нажмите кнопку *Оплатить*',
+            reply_markup=InlineKeyboardMarkup(button),
+            parse_mode=ParseMode.MARKDOWN_V2
+        )
 
-    return 'HANDLE_PAYMENT'
+        return 'HANDLE_PAYMENT'
+    elif context.user_data['pay_option'] == 'in_cash':
+        message = 'Спасибо за заказ\! *Оплата наличными*'
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=message,
+            parse_mode=ParseMode.MARKDOWN_V2
+        )
+        await context.bot.delete_message(chat_id=chat_id,
+                                         message_id=message_id)
+
+        if user_reply == 'delivery':
+            await send_order_to_courier(context, chat_id, message_id,
+                                        pay_option)
+
+        await delete_cart(moltin_token, chat_id)
+        unnecessary_data = ('nearest_restaurant', 'delivery_coordinates',
+                            'cart_description', 'pay_option')
+        clean_user_data(context.user_data, unnecessary_data)
 
 
 async def handle_payment(
@@ -351,7 +358,7 @@ async def handle_payment(
         return 'HANDLE_PAYMENT'
 
     provider_token = context.bot_data['provider_token']
-    cart_price = context.user_data['cart_price']
+    cart_price = context.user_data['cart_description']['total_price']
     payload = generate_payment_payload(update)
     await send_payment_invoice(context, chat_id, provider_token, cart_price,
                                payload=payload)
@@ -374,13 +381,18 @@ async def successful_payment_callback(
         update: Update,
         context: CallbackContext.DEFAULT_TYPE) -> None:
     chat_id = update.message.chat_id
+    message_id = update.message.message_id
     moltin_token = context.bot_data['moltin_token']
 
     await update.message.reply_text('Оплата прошла успешно')
     await delete_cart(moltin_token, chat_id)
 
+    if context.user_data.get('delivery'):
+        pay_option = context.user_data['pay_option']
+        await send_order_to_courier(context, chat_id, message_id, pay_option)
+
     unnecessary_data = ('nearest_restaurant', 'delivery_coordinates',
-                        'cart_price', 'payload')
+                        'cart_description', 'payload', 'pay_option')
     clean_user_data(context.user_data, unnecessary_data)
 
 
@@ -432,6 +444,7 @@ async def handle_users_reply(update: Update,
         'HANDLE_DESCRIPTION': handle_description,
         'HANDLE_CART': handle_cart,
         'WAITING_EMAIL': handle_email,
+        'HANDLE_PAYMENT_OPTION': handle_payment_option,
         'HANDLE_LOCATION': handle_location,
         'HANDLE_DELIVERY': handle_delivery,
         'HANDLE_PAYMENT': handle_payment
