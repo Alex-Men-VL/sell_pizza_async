@@ -1,5 +1,5 @@
 from textwrap import dedent
-from typing import Union, Dict, Tuple, Any
+from typing import Union, Dict, Tuple, Any, List
 
 from telegram import (
     InlineKeyboardButton,
@@ -10,8 +10,10 @@ from telegram.ext import CallbackContext
 from telegram.helpers import escape_markdown
 
 from moltin_api import (
-    get_product_main_image_url
+    get_product_main_image_url, get_product_by_sku
 )
+
+DATA = ''
 
 
 async def send_main_menu(context: CallbackContext.DEFAULT_TYPE,
@@ -132,6 +134,42 @@ async def send_product_description(context: CallbackContext.DEFAULT_TYPE,
                                             message_id=message_id,
                                             reply_markup=reply_markup,
                                             parse_mode=ParseMode.MARKDOWN_V2)
+
+
+def get_promo_menu(products: List[Dict[str, Any]]) -> InlineKeyboardMarkup:
+    parsed_products = {
+        product['data'][0]['name']: product['data'][0]['id']
+        for product in products
+    }
+    keyboard = []
+    for product_name, product_id in parsed_products.items():
+        keyboard.append(
+            [InlineKeyboardButton(text=f'{product_name} 🍕',
+                                  callback_data=f'product_{product_id}')]
+        )
+    keyboard.append(
+        [
+            InlineKeyboardButton(text='В меню', callback_data='promo'),
+            InlineKeyboardButton(text='Корзина🛒', callback_data='cart')
+        ]
+    )
+    return InlineKeyboardMarkup(keyboard)
+
+
+async def send_promo_products(context: CallbackContext.DEFAULT_TYPE,
+                              moltin_token: str,
+                              chat_id: str, message_id: str,
+                              promo: Dict[str, Any]) -> None:
+    promo_description = promo['description']
+    products_sku = promo['schema']['exclude']['targets']
+    products = [await get_product_by_sku(moltin_token, product_sku) for
+                product_sku in products_sku]
+    menu = get_promo_menu(products)
+    await context.bot.send_message(text=promo_description,
+                                   chat_id=chat_id,
+                                   reply_markup=menu)
+    await context.bot.delete_message(chat_id=chat_id,
+                                     message_id=message_id)
 
 
 async def send_delivery_option(update: Update,

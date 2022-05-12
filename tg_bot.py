@@ -34,7 +34,7 @@ from moltin_api import (
     get_available_entries,
     create_flow_entry,
     get_customer_by_email,
-    get_or_create_customer_by_email, get_category
+    get_or_create_customer_by_email, get_category, get_promotions
 )
 from redis_persistence import RedisPersistence
 from tg_lib import (
@@ -46,7 +46,7 @@ from tg_lib import (
     send_payment_invoice,
     generate_payment_payload,
     clean_user_data,
-    parse_cart
+    parse_cart, send_promo_products
 )
 
 logger = logging.getLogger(__file__)
@@ -122,6 +122,13 @@ async def handle_menu(update: Update,
         await send_product_description(context, product_description,
                                        chat_id, message_id)
         return 'HANDLE_DESCRIPTION'
+    elif user_reply == 'promo':
+        promotions = await get_promotions(moltin_token)
+        promotions = promotions['data']
+        new_enabled_promo = [promo for promo in promotions
+                             if promo['enabled']][0]
+        await send_promo_products(context, moltin_token, chat_id, message_id,
+                                  new_enabled_promo)
 
     return 'HANDLE_MENU'
 

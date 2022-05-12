@@ -40,6 +40,21 @@ async def get_product(access_token: str,
             return await response.json()
 
 
+async def get_product_by_sku(access_token: str,
+                             product_sku: str) -> Dict[str, Any]:
+    url = 'https://api.moltin.com/v2/products'
+    headers = {
+        'Authorization': f'Bearer {access_token}',
+    }
+    payload = {
+        'filter': f'eq(sku, {product_sku})'
+    }
+    async with aiohttp.ClientSession(raise_for_status=True,
+                                     headers=headers) as session:
+        async with session.get(url, params=payload) as response:
+            return await response.json()
+
+
 async def get_product_main_image_url(access_token: str,
                                      image_id: Union[str, int]) -> str:
     url = f'https://api.moltin.com/v2/files/{image_id}'
@@ -361,6 +376,17 @@ async def get_categories(access_token: str) -> Dict[str, Any]:
 async def get_category(access_token: str,
                        category_id: Union[str, int]) -> Dict[str, Any]:
     url = f'https://api.moltin.com/v2/categories/{category_id}'
+    headers = {
+        'Authorization': f'Bearer {access_token}'
+    }
+    async with aiohttp.ClientSession(raise_for_status=True,
+                                     headers=headers) as session:
+        async with session.get(url) as response:
+            return await response.json()
+
+
+async def get_promotions(access_token: str) -> Dict[str, Any]:
+    url = 'https://api.moltin.com/v2/promotions'
     headers = {
         'Authorization': f'Bearer {access_token}'
     }
