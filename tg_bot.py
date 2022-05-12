@@ -481,7 +481,16 @@ def main() -> None:
             'provider_token': provider_token,
         }
     }
-    persistence = RedisPersistence(url=redis_uri, main_key='tg',
+
+    redis_db_keys = {
+        'main_key': env.str('DB_MAIN_KEY', 'tg'),
+        'bot_data_key': env.str('DB_BOT_DATA_KEY', '_bot_data'),
+        'user_data_key': env.str('DB_USER_DATA_KEY', '_user_data'),
+        'callback_data_key': env.str('DB_CALLBACK_DATA_KEY', '_callback_data'),
+        'chat_data_key': env.str('DB_CHAT_DATA_KEY', '_chat_data'),
+        'conversations_key': env.str('DB_CONVERSATIONS_KEY', '_conversations')
+    }
+    persistence = RedisPersistence(url=redis_uri, **redis_db_keys,
                                    initial_data=initial_db_data)
     application = Application.builder().token(bot_token).persistence(
         persistence
